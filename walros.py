@@ -12,7 +12,7 @@ import sys
 
 import click
 import gspread
-from oauth2client.client import SignedJwtAssertionCredentials
+from oauth2client.service_account import ServiceAccountCredentials
 
 
 FOCUS_UNIT_DURATION = 1800  # seconds (30 minutes)
@@ -127,6 +127,9 @@ def start(label, seconds, minutes, hours, whitenoise, track, force):
       label_count = timer_increment_label_count(label)
       click.echo("%s count: %d" % (label, label_count))
 
+  except Exception as ex:
+    print str(ex)
+
   finally:
     timer_notify()
 
@@ -229,13 +232,10 @@ def init_memoize(init_fn):
   return wrapper_fn
 
 
-@init_memoize
 def walros_spreadsheet():
-  json_key = json.load(open(SPREADSHEET_KEY_FILEPATH))
-  scope = ['https://spreadsheets.google.com/feeds']
-  credentials = SignedJwtAssertionCredentials(json_key['client_email'],
-                                              json_key['private_key'].encode(),
-                                              scope)
+  scopes = ['https://spreadsheets.google.com/feeds']
+  credentials = ServiceAccountCredentials.from_json_keyfile_name(
+      SPREADSHEET_KEY_FILEPATH, scopes=scopes)
   gclient = gspread.authorize(credentials)
   return gclient.open("walrOS")
 
