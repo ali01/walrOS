@@ -67,15 +67,16 @@ def start(label, seconds, minutes, hours, whitenoise, track, force):
 
     delta = endtime - time.time()
     if delta > 0.0:
+      with open(timer_resume_filepath(label), 'w') as f:
+        f.write(str(delta))
+
+      click.echo("\nPausing timer at %f." % delta)
+
       # TODO(alive): do not increment if track flag is false
       subprocess.call(["blink -q --rgb=0xff,0xa0,0x00 --blink=10 &"],
                       shell=True)
       interrupts = timer_increment_label_count(TIMER_WORKSHEET_INTERRUPTS_LABEL)
-      click.echo("\nPausing timer at %f." % delta)
       click.echo("Interrupts: %d" % interrupts)
-
-      with open(timer_resume_filepath(label), 'w') as f:
-        f.write(str(delta))
 
     cleanup()
     sys.exit(0)
@@ -114,18 +115,20 @@ def start(label, seconds, minutes, hours, whitenoise, track, force):
 
     time.sleep(1)
 
-  if track:
-    worksheet = walros_worksheet(TIMER_WORKSHEET_NAME)
-    latest_date = worksheet.cell(2, 1).value
-    latest_date = latest_date.split()[0]
-    date_today = datetime.datetime.now().strftime("%Y-%m-%d")
-    if latest_date != date_today:
-      click.echo("Warning: the latest row in spreadsheet does not correspond "
-                 "to today's date.")
-    label_count = timer_increment_label_count(label)
-    click.echo("%s count: %d" % (label, label_count))
+  try:
+    if track:
+      worksheet = walros_worksheet(TIMER_WORKSHEET_NAME)
+      latest_date = worksheet.cell(2, 1).value
+      latest_date = latest_date.split()[0]
+      date_today = datetime.datetime.now().strftime("%Y-%m-%d")
+      if latest_date != date_today:
+        click.echo("Warning: the latest row in spreadsheet does not correspond "
+                   "to today's date.")
+      label_count = timer_increment_label_count(label)
+      click.echo("%s count: %d" % (label, label_count))
 
-  timer_notify()
+  finally:
+    timer_notify()
 
 @timer.command()
 @click.option("-d", "--data", is_flag=True)
