@@ -180,7 +180,7 @@ def mod(mod_expression):
 
 def timer_notify():
   subprocess.call(["blink -q --blink=20 &"], shell=True)
-  for ix in range(0, 20):
+  for ix in range(0, 3):
     subprocess.call(["afplay", "/System/Library/Sounds/Blow.aiff"])
     time.sleep(2)
 
