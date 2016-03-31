@@ -128,7 +128,7 @@ def start(label, seconds, minutes, hours, whitenoise, track, force):
       click.echo("%s count: %d" % (label, label_count))
 
   except Exception as ex:
-    print str(ex)
+    click.echo(str(ex))
 
   finally:
     timer_notify()
@@ -179,6 +179,8 @@ def mod(mod_expression):
 
 
 def timer_notify():
+  click.echo("Notified at %s" %
+             datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"))
   subprocess.call(["blink -q --blink=20 &"], shell=True)
   for ix in range(0, 3):
     subprocess.call(["afplay", "/System/Library/Sounds/Blow.aiff"])
