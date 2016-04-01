@@ -24,8 +24,6 @@ TIMER_RESUME_FILE_SUFFIX = "-paused"
 
 TIMER_WORKSHEET_NAME = "Time"
 TIMER_WORKSHEET_COLUMN_MARGIN = 2
-TIMER_WORKSHEET_INTERRUPTS_LABEL = "interrupts"
-TIMER_WORKSHEET_STATUS_QS_LABEL = "status qs"
 
 
 @click.group()
@@ -75,8 +73,6 @@ def start(label, seconds, minutes, hours, whitenoise, track, force):
       # TODO(alive): do not increment if track flag is false
       subprocess.call(["blink -q --rgb=0xff,0xa0,0x00 --blink=10 &"],
                       shell=True)
-      interrupts = timer_increment_label_count(TIMER_WORKSHEET_INTERRUPTS_LABEL)
-      click.echo("Interrupts: %d" % interrupts)
 
     cleanup()
     sys.exit(0)
@@ -137,12 +133,10 @@ def start(label, seconds, minutes, hours, whitenoise, track, force):
 @click.option("-d", "--data", is_flag=True)
 def status(data):
   # Running timer.
-  track_queries = False
   with open(timer_resource_path(TIMER_ENDTIME_FILENAME), 'r') as f:
     delta = max(float(f.read()) - time.time(), 0.0)
     if delta > 0:
       click.echo("  current: %f" % delta)
-      track_queries = True
 
   # Paused timers.
   for timer in timer_paused_filepaths():
@@ -150,11 +144,6 @@ def status(data):
     with open(timer, 'r') as f:
       delta = float(f.read())
       click.echo("  %s: %f" % (label, delta))
-
-  # Tracking.
-  if track_queries:
-    status_qs = timer_increment_label_count(TIMER_WORKSHEET_STATUS_QS_LABEL)
-    click.echo("\nQueries: %d" % status_qs)
 
 @timer.command()
 @click.option("-l", "--label")
