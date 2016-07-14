@@ -23,6 +23,7 @@ TIMER_ENDTIME_FILENAME = "endtime"
 TIMER_RESUME_FILE_SUFFIX = "-paused"
 
 TIMER_WORKSHEET_NAME = "Time"
+TIMER_WORKSHEET_ROW_MARGIN = 3
 TIMER_WORKSHEET_COLUMN_MARGIN = 2
 
 
@@ -114,7 +115,7 @@ def start(label, seconds, minutes, hours, whitenoise, track, force):
   try:
     if track:
       worksheet = walros_worksheet(TIMER_WORKSHEET_NAME)
-      latest_date = worksheet.cell(2, 1).value
+      latest_date = worksheet.cell(TIMER_WORKSHEET_ROW_MARGIN + 1, 1).value
       latest_date = latest_date.split()[0]
       date_today = datetime.datetime.now().strftime("%Y-%m-%d")
       if latest_date != date_today:
@@ -205,7 +206,8 @@ def timer_col_index_for_label(label):
 
 def timer_increment_label_count(label):
   worksheet = walros_worksheet(TIMER_WORKSHEET_NAME)
-  count_cell = worksheet.cell(2, timer_col_index_for_label(label))
+  count_cell = worksheet.cell(TIMER_WORKSHEET_ROW_MARGIN + 1,
+                              timer_col_index_for_label(label))
   cell_value = 1 if not count_cell.value else int(count_cell.value) + 1
   count_cell.value = str(cell_value)
   worksheet.update_cells([count_cell])
