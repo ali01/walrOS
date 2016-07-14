@@ -23,7 +23,8 @@ TIMER_ENDTIME_FILENAME = "endtime"
 TIMER_RESUME_FILE_SUFFIX = "-paused"
 
 TIMER_WORKSHEET_NAME = "Time"
-TIMER_WORKSHEET_ROW_MARGIN = 3
+TIMER_WORKSHEET_ROW_MARGIN = 4
+TIMER_WORKSHEET_LABEL_ROW_INDEX = 2
 TIMER_WORKSHEET_COLUMN_MARGIN = 2
 
 
@@ -194,7 +195,8 @@ def timer_paused_filepaths():
 
 def timer_col_index_for_label(label):
   worksheet = walros_worksheet(TIMER_WORKSHEET_NAME)
-  row_labels = worksheet.row_values(1)[TIMER_WORKSHEET_COLUMN_MARGIN:]
+  row = worksheet.row_values(TIMER_WORKSHEET_LABEL_ROW_INDEX)
+  row_labels = row[TIMER_WORKSHEET_COLUMN_MARGIN:]
   try:
     col_index = row_labels.index(label)
     col_index += TIMER_WORKSHEET_COLUMN_MARGIN + 1
