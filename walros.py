@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 from datetime import datetime
-import httplib2
 import time
 import itertools
 import json
@@ -13,17 +12,12 @@ import sys
 
 import click
 
-# gData API
-from apiclient import discovery
-import oauth2client
-from oauth2client import client
-from oauth2client import tools
-
 # gspread
-# TODO(alive): move away from this
+# TODO(alive): move away from gspread
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
+import data_util
 
 APPLICATION_NAME = "walrOS"
 SPREADSHEET_ID = "1JvO-sjs2kCFFD2FcX1a7XQ8uYyj-9o-anS9RElrtXYI"
@@ -76,7 +70,8 @@ def walros():
 
 @walros.command()
 def init():
-  spreadsheets = get_spreadsheets()
+  spreadsheet = data_util.Spreadsheet(SPREADSHEET_ID)
+  time_worksheet = spreadsheet.GetWorksheet(TIMER_SHEET_ID)
 
   # -- Time Sheet --
   # Get all necessary state.
@@ -93,13 +88,9 @@ def init():
   for x in month_col_indices:  # Monthly columns needed to resize merges.
     ranges.append("R%dC%d" % (last_row_index, x))
 
-  # Prepend sheet name.
+  # Prepend sheet name to all ranges.
   ranges = ["%s!%s" % (TIMER_SHEET_NAME, x) for x in ranges]
-  request = spreadsheets.get(spreadsheetId=SPREADSHEET_ID,
-                             includeGridData=False,
-                             ranges=ranges,
-                             fields="sheets(data,merges)")
-  response = request.execute()
+  response = spreadsheet.GetRanges(ranges, fields="sheets(data,merges)")
 
   # Data.
   data = response['sheets'][0]["data"]
@@ -113,7 +104,6 @@ def init():
     print "Already initialized."
     return
 
-
   # Merges.
   merges = response['sheets'][0].get("merges", [])
   week_merge_ranges = [x for i, x in enumerate(merges)
@@ -126,71 +116,70 @@ def init():
          len(month_merge_ranges) == len(month_col_indices))
   if len(week_merge_ranges) == 0:  # Populate with ranges of size one.
     for i in week_col_indices:
-      append_merge_range(week_merge_ranges,
-                         last_row_index, last_row_index, i, i)
+      week_merge_ranges.append(
+          time_worksheet.NewMergeRange(last_row_index, last_row_index, i, i))
   if len(month_merge_ranges) == 0:  # Populate with ranges of size one.
     for i in month_col_indices:
-      append_merge_range(month_merge_ranges,
-                         last_row_index, last_row_index, i, i)
+      month_merge_ranges.append(
+          time_worksheet.NewMergeRange(last_row_index, last_row_index, i, i))
 
-  post_requests = []
-  post_requests.append({  # Insert new row for today.
-    'insertDimension': {
-      'range': {
-          'sheetId': TIMER_SHEET_ID,
-          'dimension': 'ROWS',
-          'startIndex': 4,
-          'endIndex': 5,
-      },
-    },
-  })
+  init_requests = []
+  init_requests.append(time_worksheet.NewInsertRowsBatchRequest(
+      TIMER_SHEET_ROW_MARGIN + 1, 1))
 
   if last_date_tracked.isocalendar()[1] == today.isocalendar()[1]:
     # Same week. Merge rows on weekly columns.
-    for merge in week_merge_ranges:
-      merge["endRowIndex"] += 1
-      append_merge(post_requests, merge)
+    for merge_range in week_merge_ranges:
+      merge_range["endRowIndex"] += 1
+      init_requests.append(
+          time_worksheet.NewMergeCellsBatchRequest(merge_range))
   else:
-    print "New week!"
-    for merge in week_merge_ranges:
-      merge["endRowIndex"] = last_row_index
+    for merge_range in week_merge_ranges:
+      merge_range["endRowIndex"] = last_row_index
 
   if last_date_tracked.month == today.month:
     # Same month. Merge rows on monthly columns.
-    for merge in month_merge_ranges:
-      merge["endRowIndex"] += 1
-      append_merge(post_requests, merge)
+    for merge_range in month_merge_ranges:
+      merge_range["endRowIndex"] += 1
+      init_requests.append(
+          time_worksheet.NewMergeCellsBatchRequest(merge_range))
   else:
-    print "New month!"
-    for merge in month_merge_ranges:
-      merge["endRowIndex"] = last_row_index
+    for merge_range in month_merge_ranges:
+      merge_range["endRowIndex"] = last_row_index
 
   # Compute new merge ranges (indices are all inclusive).
   week_merge_row_range = (last_row_index, week_merge_ranges[0]["endRowIndex"])
   month_merge_row_range = (last_row_index, month_merge_ranges[0]["endRowIndex"])
 
   for x in TIMER_SHEET_WEEK_COLUMN_INDICES:
-    append_sum_formula_update(post_requests, last_row_index, x[0],
-                              week_merge_row_range, x[1])
+    init_requests.append(
+        new_sum_formula_update(time_worksheet, last_row_index, x[0],
+                               week_merge_row_range, x[1]))
   for x in TIMER_SHEET_MONTH_COLUMN_INDICES:
-    append_sum_formula_update(post_requests, last_row_index, x[0],
-                              month_merge_row_range, x[1])
+    init_requests.append(
+        new_sum_formula_update(time_worksheet, last_row_index, x[0],
+                               month_merge_row_range, x[1]))
 
   # Insert today's date into the new row.
-  append_set(post_requests, last_row_index, 1,
-             today.strftime(TIMER_SHEET_DATE_FORMAT), 'stringValue')
+  init_requests.append(
+      time_worksheet.NewUpdateCellBatchRequest(
+          last_row_index, 1, today.strftime(TIMER_SHEET_DATE_FORMAT)))
 
   total_count_formula = '='
   for i in TIMER_SHEET_DAY_COLUMN_INDICES:
     total_count_formula += "%s%d+" % (col_num_to_letter(i), last_row_index)
 
     # Insert zero counts in new day cells.
-    append_set(post_requests, last_row_index, i, 0, 'numberValue')
+    init_requests.append(
+        time_worksheet.NewUpdateCellBatchRequest(
+            last_row_index, i, 0, data_util.Worksheet.UpdateCellsMode.number))
 
   # Insert today's total count formula into new row.
   total_count_formula = total_count_formula[:-1]  # Strip final plus sign.
-  append_set(post_requests, last_row_index, 2, total_count_formula,
-             'formulaValue')
+  init_requests.append(
+      time_worksheet.NewUpdateCellBatchRequest(
+          last_row_index, 2, total_count_formula,
+          data_util.Worksheet.UpdateCellsMode.formula))
 
   cols_for_sums_update = ([TIMER_SHEET_ROW_STATS_COLUMN] +
                           TIMER_SHEET_DAY_COLUMN_INDICES)
@@ -201,41 +190,19 @@ def init():
     column_letter = col_num_to_letter(i)
     row_range = "%s%d:%s" % (column_letter, last_row_index, column_letter)
     sum_formula = "=SUM(%s)" % row_range
-    append_set(post_requests, TIMER_SHEET_RUNNING_SUMS_ROW, i,
-               sum_formula, 'formulaValue')
+    init_requests.append(time_worksheet.NewUpdateCellBatchRequest(
+        TIMER_SHEET_RUNNING_SUMS_ROW, i, sum_formula,
+        data_util.Worksheet.UpdateCellsMode.formula))
   for i in cols_for_averages_update:
     column_letter = col_num_to_letter(i)
     row_range = "%s%d:%s" % (column_letter, last_row_index, column_letter)
     average_formula = "=AVERAGE(%s)" % row_range
-    append_set(post_requests, TIMER_SHEET_AVERAGES_ROW, i,
-               average_formula, 'formulaValue')
+    init_requests.append(time_worksheet.NewUpdateCellBatchRequest(
+        TIMER_SHEET_AVERAGES_ROW, i, average_formula,
+        data_util.Worksheet.UpdateCellsMode.formula))
 
   # Send request.
-  request = spreadsheets.batchUpdate(spreadsheetId=SPREADSHEET_ID,
-                                     body={'requests': post_requests})
-  response = request.execute()
-
-
-def append_set(lst, row, col, value, mode):
-  lst.append({
-    'updateCells': {
-      'fields': 'userEnteredValue',
-      'start': {  # Zero-based indexing here.
-        'rowIndex': row - 1,
-        'columnIndex': col - 1,
-        'sheetId': TIMER_SHEET_ID
-      },
-      'rows': [
-        {
-          'values': {
-            'userEnteredValue': {
-              mode: value
-            }
-          }
-        }
-      ]
-    }
-  })
+  response = spreadsheet.BatchUpdate(init_requests)
 
 
 def col_num_to_letter(column_number):
@@ -246,35 +213,15 @@ def col_num_to_letter(column_number):
     column_number = (column_number - tmp - 1) / 26
   return letter
 
-
-# Helper to build and append merge requests to a list.
-def append_merge(lst, merge):
-  lst.append({
-    'mergeCells': {
-      'mergeType': 'MERGE_ALL',
-      'range': merge
-    }
-  })
-
-# Helper to build and append merge ranges to a list.
-def append_merge_range(lst, start_row, end_row, start_col, end_col):
-  lst.append({
-    "startRowIndex": start_row - 1,
-    "endRowIndex": end_row,
-    "startColumnIndex": start_col - 1,
-    "endColumnIndex": end_col,
-    "sheetId": TIMER_SHEET_ID
-  })
-
 # Helper to build and append update formula requests to a list.
-def append_sum_formula_update(lst, target_row, target_column,
-                              sum_row_range, sum_column_range):
+def new_sum_formula_update(time_worksheet, target_row, target_column,
+                           sum_row_range, sum_column_range):
   sum_range = "%s%d:%s%d" % (
       col_num_to_letter(sum_column_range[0]), sum_row_range[0],
       col_num_to_letter(sum_column_range[1]), sum_row_range[1])
-  append_set(lst, target_row, target_column, '=SUM(%s)' % sum_range,
-             'formulaValue')
-
+  return time_worksheet.NewUpdateCellBatchRequest(
+      target_row, target_column, '=SUM(%s)' % sum_range,
+      data_util.Worksheet.UpdateCellsMode.formula)
 
 # -- Timer --
 
@@ -460,17 +407,6 @@ def timer_increment_label_count(label):
   return cell_value
 
 
-def init_memoize(init_fn):
-  """Decorator to memoize initialization"""
-  obj = []
-  def wrapper_fn():
-    if len(obj) == 0:
-      obj.append(init_fn())
-    return obj[0]
-
-  return wrapper_fn
-
-
 def walros_spreadsheet():
   scopes = ['https://spreadsheets.google.com/feeds']
   credentials = ServiceAccountCredentials.from_json_keyfile_name(
@@ -482,50 +418,6 @@ def walros_spreadsheet():
 def walros_worksheet(worksheet_name):
   spreadsheet = walros_spreadsheet()
   return spreadsheet.worksheet(worksheet_name)
-
-# -- gData API --
-# Eventually migrate all gspread calls to gData calls.
-
-def get_credentials():
-    """Gets valid user credentials from storage.
-
-    If nothing has been stored, or if the stored credentials are invalid,
-    the OAuth2 flow is run to obtain the new credentials.
-
-    Returns:
-        The obtained credentials.
-    """
-    credential_dir = os.path.join(os.path.expanduser('~'), '.credentials')
-    if not os.path.exists(credential_dir):
-        os.makedirs(credential_dir)
-    credential_path = os.path.join(credential_dir,
-                                   'sheets.googleapis.com-walros.json')
-
-    store = oauth2client.file.Storage(credential_path)
-    credentials = store.get()
-    if not credentials or credentials.invalid:
-        flow = client.flow_from_clientsecrets(CLIENT_SECRET_FILEPATH,
-                                              PERMISSION_SCOPES)
-        flow.user_agent = APPLICATION_NAME
-
-        import argparse
-        flags_namespace = argparse.Namespace()
-        setattr(flags_namespace, 'auth_host_name', 'localhost')
-        setattr(flags_namespace, 'logging_level', 'ERROR')
-        setattr(flags_namespace, 'noauth_local_webserver', False)
-        setattr(flags_namespace, 'auth_host_port', [8080, 8090])
-        credentials = tools.run_flow(flow, store, flags_namespace)
-        print('Storing credentials to ' + credential_path)
-    return credentials
-
-def get_spreadsheets():
-  credentials = get_credentials()
-  http = credentials.authorize(httplib2.Http())
-  discoveryUrl = ('https://sheets.googleapis.com/$discovery/rest?version=v4')
-  service = discovery.build('sheets', 'v4', http=http,
-                            discoveryServiceUrl=discoveryUrl)
-  return service.spreadsheets()
-
 
 def cleanup():
   # TODO(alive): write blink wrapper
