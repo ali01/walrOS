@@ -66,6 +66,3 @@ if __name__ == "__main__":
 
   except Exception as ex:
     click.echo(traceback.format_exc())
-
-  finally:
-    timer_module.cleanup()

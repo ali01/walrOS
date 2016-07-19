@@ -198,6 +198,7 @@ def build_new_day_merge_requests(time_worksheet, today, last_date_tracked,
             time_worksheet, range_obj.row_range[0], i,
             range_obj.row_range, i+sum_column_offset))
       while merge_ranges:
+        # TODO: don't append if row span is equal to 1
         requests.append(time_worksheet.NewMergeCellsBatchRequest(
             merge_ranges.pop()))
 
@@ -224,7 +225,6 @@ def build_new_day_merge_requests(time_worksheet, today, last_date_tracked,
 
   close_merge_range_requests(week_merge_ranges, WEEK_COLUMN_INDICES, -1)
   close_merge_range_requests(month_merge_ranges, MONTH_COLUMN_INDICES, -2)
-  print json.dumps(requests, indent=4)
   return requests
 
 
@@ -278,8 +278,6 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
       # TODO(alive): do not increment if track flag is false
       subprocess.call(["blink -q --rgb=0xff,0xa0,0x00 --blink=10 &"],
                       shell=True)
-
-    cleanup()
     sys.exit(0)
 
   signal.signal(signal.SIGINT, sigint_handler)
