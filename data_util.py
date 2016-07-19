@@ -91,6 +91,17 @@ class Worksheet(object):
       },
     }
 
+# Expose at the top-level.
+UpdateCellsMode = Worksheet.UpdateCellsMode
+
+
+class MergeRange(object):
+  def __init__(self, merge_range):
+    self.row_range = (merge_range['startRowIndex'] + 1,
+                      merge_range['endRowIndex'])
+    self.col_range = (merge_range['startColumnIndex'] + 1,
+                      merge_range['endColumnIndex'])
+
 # -- Authentication --
 
 def memoize(init_fn):
