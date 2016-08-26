@@ -45,7 +45,7 @@ AVERAGES_ROW = 4
 # We currently assume that each day column is immediately followed
 # by a week column and a month column.
 ROW_STATS_COLUMN_INDICES = [2]
-DAY_COLUMN_INDICES = [3,  6, 9, 12, 15]
+DAY_COLUMN_INDICES = [3, 6, 9, 12, 15, 18, 21]
 WEEK_COLUMN_INDICES = [x + 1 for x in DAY_COLUMN_INDICES]
 MONTH_COLUMN_INDICES = [x + 2 for x in DAY_COLUMN_INDICES]
 
