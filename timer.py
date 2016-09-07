@@ -273,7 +273,9 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
       with open(timer_resume_filepath(label), 'w') as f:
         f.write(str(delta))
 
-      click.echo("\nPausing timer at %f." % delta)
+      click.echo("\n%s: Pausing timer at %d." %
+                 (datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
+                  delta))
 
       # TODO(alive): do not increment if track flag is false
       subprocess.call(["blink -q --rgb=0xff,0xa0,0x00 --blink=10 &"],
