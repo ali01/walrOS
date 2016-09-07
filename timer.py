@@ -291,11 +291,15 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
       delta = float(f.read())
       endtime = time.time() + delta
     os.remove(resume_filepath)
-    click.echo("Resuming at %f" % delta)
+    click.echo("%s: Resuming at %d second(s)" %
+               (datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
+                delta))
   else:
     delta = seconds + minutes * 60 + hours * 3600
     endtime = time.time() + delta
-    click.echo(delta)
+    click.echo("%s: Starting at %d second(s)" %
+               (datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
+                delta))
 
   endtime_filepath = timer_resource_path(ENDTIME_FILENAME)
   with open(endtime_filepath, 'w') as f:
@@ -368,7 +372,7 @@ def mod_command(mod_expression):
 
 
 def timer_notify():
-  click.echo("Notified at %s" %
+  click.echo("%s: Notified" %
              datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"))
   subprocess.call(["blink -q --blink=20 &"], shell=True)
   for ix in range(0, 3):
