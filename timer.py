@@ -273,7 +273,7 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
       with open(timer_resume_filepath(label), 'w') as f:
         f.write(str(delta))
 
-      click.echo("\n%s: Pausing timer at %d." %
+      click.echo("\n%s: Pausing timer at %d seconds." %
                  (datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
                   delta))
 
@@ -293,13 +293,13 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
       delta = float(f.read())
       endtime = time.time() + delta
     os.remove(resume_filepath)
-    click.echo("%s: Resuming at %d second(s)" %
+    click.echo("%s: Resuming at %d seconds." %
                (datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
                 delta))
   else:
     delta = seconds + minutes * 60 + hours * 3600
     endtime = time.time() + delta
-    click.echo("%s: Starting at %d second(s)" %
+    click.echo("%s: Starting at %d seconds." %
                (datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
                 delta))
 
