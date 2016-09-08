@@ -374,9 +374,12 @@ def mod_command(mod_expression):
 
 
 def timer_notify():
-  click.echo("%s: Notified" %
-             datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"))
+  time_str = datetime.datetime.strftime(datetime.datetime.now(), "%H:%M")
+  click.echo("%s: Notified" % time_str)
   subprocess.call(["blink -q --blink=20 &"], shell=True)
+  subprocess.call(["osascript -e \'display notification " +
+                   "\"%s: notify\" with title \"walrOS timer\"\'" % time_str],
+                  shell=True)
   for ix in range(0, 3):
     subprocess.call(["afplay", "/System/Library/Sounds/Blow.aiff"])
     time.sleep(2)
