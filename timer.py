@@ -45,9 +45,10 @@ AVERAGES_ROW = 4
 # We currently assume that each day column is immediately followed
 # by a week column and a month column.
 ROW_STATS_COLUMN_INDICES = [2]
-DAY_COLUMN_INDICES = [3, 6, 9, 12, 15, 18, 21]
+DAY_COLUMN_INDICES = [3, 7, 11, 15, 19, 23, 27]
 WEEK_COLUMN_INDICES = [x + 1 for x in DAY_COLUMN_INDICES]
 MONTH_COLUMN_INDICES = [x + 2 for x in DAY_COLUMN_INDICES]
+QUARTER_COLUMN_INDICES = [x + 3 for x in DAY_COLUMN_INDICES]
 
 
 def setup():
@@ -82,6 +83,8 @@ def init_command():
     ranges.append("R%dC%d" % (LAST_DAY_ROW_INDEX, x))
   for x in MONTH_COLUMN_INDICES:  # Monthly columns needed to resize merges.
     ranges.append("R%dC%d" % (LAST_DAY_ROW_INDEX, x))
+  for x in QUARTER_COLUMN_INDICES: # Quarterly columns needed to resize merges.
+    ranges.append("R%dC%d" % (LAST_DAY_ROW_INDEX, x))
 
   # Prepend sheet name to all ranges.
   ranges = ["%s!%s" % (WORKSHEET_NAME, x) for x in ranges]
@@ -104,10 +107,13 @@ def init_command():
                                            WEEK_COLUMN_INDICES)
   month_merge_ranges = extract_merge_ranges(time_worksheet, response,
                                             MONTH_COLUMN_INDICES)
+  quarter_merge_ranges = extract_merge_ranges(time_worksheet, response,
+                                              QUARTER_COLUMN_INDICES)
+
   # Insert new days.
   init_requests = build_new_day_requests(
       time_worksheet, today, last_date_tracked,
-      week_merge_ranges, month_merge_ranges)
+      week_merge_ranges, month_merge_ranges, quarter_merge_ranges)
 
   # Update sheet wide statistics.
   init_requests += build_update_statistics_requests(time_worksheet)
@@ -135,7 +141,8 @@ def build_new_merge_ranges(time_worksheet, row, column_indices):
 
 
 def build_new_day_requests(time_worksheet, today, last_date_tracked,
-                           week_merge_ranges, month_merge_ranges):
+                           week_merge_ranges, month_merge_ranges,
+                           quarter_merge_ranges):
   requests = []
   delta_days = (today - last_date_tracked).days
 
@@ -144,7 +151,8 @@ def build_new_day_requests(time_worksheet, today, last_date_tracked,
       ROW_MARGIN + 1, delta_days))
 
   # Adjust merge ranges to account for newly inserted rows.
-  for merge_range in week_merge_ranges + month_merge_ranges:
+  for merge_range in (week_merge_ranges + month_merge_ranges +
+                      quarter_merge_ranges):
     merge_range['startRowIndex'] += delta_days
     merge_range['endRowIndex'] += delta_days
 
@@ -171,12 +179,13 @@ def build_new_day_requests(time_worksheet, today, last_date_tracked,
   # Deal with merges.
   requests += build_new_day_merge_requests(
       time_worksheet, today, last_date_tracked,
-      week_merge_ranges, month_merge_ranges)
+      week_merge_ranges, month_merge_ranges, quarter_merge_ranges)
   return requests
 
 
 def build_new_day_merge_requests(time_worksheet, today, last_date_tracked,
-                                 week_merge_ranges, month_merge_ranges):
+                                 week_merge_ranges, month_merge_ranges,
+                                 quarter_merge_ranges):
   requests = []
   tmp_date = copy.deepcopy(last_date_tracked)
   while tmp_date != today:
@@ -221,10 +230,23 @@ def build_new_day_merge_requests(time_worksheet, today, last_date_tracked,
       close_merge_range_requests(month_merge_ranges, MONTH_COLUMN_INDICES, -2)
       month_merge_ranges += build_new_merge_ranges(time_worksheet, row_index,
                                                    MONTH_COLUMN_INDICES)
+
+    # Quarter column merges.
+    if (tmp_date.month - 1) / 3 == (tmp_next_date.month - 1) / 3:
+      # Same quarter. Extend merge ranges on quarterly columns.
+      extend_merge_ranges(quarter_merge_ranges)
+    else:
+      # New quarter. Close out existing merge ranges.
+      close_merge_range_requests(quarter_merge_ranges,
+                                 QUARTER_COLUMN_INDICES, -3)
+      quarter_merge_ranges += build_new_merge_ranges(time_worksheet, row_index,
+                                                     QUARTER_COLUMN_INDICES)
+
     tmp_date = tmp_next_date
 
   close_merge_range_requests(week_merge_ranges, WEEK_COLUMN_INDICES, -1)
   close_merge_range_requests(month_merge_ranges, MONTH_COLUMN_INDICES, -2)
+  close_merge_range_requests(quarter_merge_ranges, QUARTER_COLUMN_INDICES, -3)
   return requests
 
 
@@ -243,7 +265,8 @@ def build_update_statistics_requests(time_worksheet):
   requests = []
   cols_for_sums_update = ROW_STATS_COLUMN_INDICES + DAY_COLUMN_INDICES
   cols_for_averages_update = (ROW_STATS_COLUMN_INDICES + DAY_COLUMN_INDICES +
-                              WEEK_COLUMN_INDICES + MONTH_COLUMN_INDICES)
+                              WEEK_COLUMN_INDICES + MONTH_COLUMN_INDICES +
+                              QUARTER_COLUMN_INDICES)
   for i in cols_for_sums_update:
     column_letter = col_num_to_letter(i)
     row_range = "%s%d:%s" % (column_letter, LAST_DAY_ROW_INDEX, column_letter)
