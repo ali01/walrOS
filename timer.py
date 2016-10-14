@@ -300,7 +300,6 @@ def build_update_statistics_requests(time_worksheet):
 
 
 def start_command(label, seconds, minutes, hours, whitenoise, track, force):
-  # TODO(alive): decompose
   def sigint_handler(signum, frame):
     with open(timer_resource_path(ENDTIME_FILENAME), 'r') as f:
       endtime = float(f.read())
@@ -402,8 +401,7 @@ def clear_command(label):
       click.echo("No paused timer with label '%s' exists." % label)
 
   else:
-    for timer in timer_paused_filepaths():
-      os.remove(timer)
+    click.echo("Please specify a label to clear.")
 
 
 def mod_command(mod_expression):
