@@ -11,7 +11,6 @@ import sys
 
 import click
 
-# gspread
 # TODO(alive): move away from gspread
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -35,12 +34,13 @@ WORKSHEET_NAME = "Time"
 WORKSHEET_ID = 925912296  # Found in URL.
 DATE_FORMAT = "%Y-%m-%d %A"
 
-ROW_MARGIN = 4
-LAST_DAY_ROW_INDEX = ROW_MARGIN + 1
+HEADER_ROWS = ["TITLE", "LABELS", "TOTALS", "MEDIANS", "PERCENTILE", "MAX"]
+
+# Margins
+ROW_MARGIN = len(HEADER_ROWS)
 COLUMN_MARGIN = 2
-LABEL_ROW_INDEX = 2
-RUNNING_SUMS_ROW = 3
-AVERAGES_ROW = 4
+
+LAST_DAY_ROW_INDEX = ROW_MARGIN + 1
 
 # We currently assume that each day column is immediately followed
 # by a week column and a month column.
@@ -264,21 +264,38 @@ def build_sum_formula_update(time_worksheet, target_row, target_column,
 def build_update_statistics_requests(time_worksheet):
   requests = []
   cols_for_sums_update = ROW_STATS_COLUMN_INDICES + DAY_COLUMN_INDICES
-  cols_for_averages_update = (ROW_STATS_COLUMN_INDICES + DAY_COLUMN_INDICES +
-                              WEEK_COLUMN_INDICES + MONTH_COLUMN_INDICES +
-                              QUARTER_COLUMN_INDICES)
+  cols_for_other_stats_update = (ROW_STATS_COLUMN_INDICES + DAY_COLUMN_INDICES +
+                                 WEEK_COLUMN_INDICES + MONTH_COLUMN_INDICES +
+                                 QUARTER_COLUMN_INDICES)
+  # Totals.
   for i in cols_for_sums_update:
     column_letter = col_num_to_letter(i)
     row_range = "%s%d:%s" % (column_letter, LAST_DAY_ROW_INDEX, column_letter)
     sum_formula = "=SUM(%s)" % row_range
     requests.append(time_worksheet.NewUpdateCellBatchRequest(
-        RUNNING_SUMS_ROW, i, sum_formula, UpdateCellsMode.formula))
-  for i in cols_for_averages_update:
+        row_index("TOTALS"), i, sum_formula, UpdateCellsMode.formula))
+
+  # Other stats.
+  for i in cols_for_other_stats_update:
     column_letter = col_num_to_letter(i)
     row_range = "%s%d:%s" % (column_letter, LAST_DAY_ROW_INDEX, column_letter)
-    average_formula = "=AVERAGE(%s)" % row_range
+
+    # Medians.
+    median_formula = "=MEDIAN(%s)" % row_range
     requests.append(time_worksheet.NewUpdateCellBatchRequest(
-        AVERAGES_ROW, i, average_formula, UpdateCellsMode.formula))
+        row_index("MEDIANS"), i, median_formula, UpdateCellsMode.formula))
+
+    # Percentile.
+    percentile_formula = "=PERCENTILE(%s, %f)" % (row_range, 0.90)
+    requests.append(time_worksheet.NewUpdateCellBatchRequest(
+        row_index("PERCENTILE"), i, percentile_formula,
+        UpdateCellsMode.formula))
+
+    # Max.
+    max_formula = "=MAX(%s)" % row_range
+    requests.append(time_worksheet.NewUpdateCellBatchRequest(
+        row_index("MAX"), i, max_formula, UpdateCellsMode.formula))
+
   return requests
 
 
@@ -427,7 +444,7 @@ def timer_paused_filepaths():
 
 def timer_col_index_for_label(label):
   worksheet = walros_worksheet(WORKSHEET_NAME)
-  row = worksheet.row_values(LABEL_ROW_INDEX)
+  row = worksheet.row_values(row_index("LABELS"))
   row_labels = row[COLUMN_MARGIN:]
   try:
     col_index = row_labels.index(label)
@@ -455,6 +472,10 @@ def col_num_to_letter(column_number):
     letter = chr(tmp + 65) + letter
     column_number = (column_number - tmp - 1) / 26
   return letter
+
+
+def row_index(row_name):
+  return HEADER_ROWS.index(row_name) + 1
 
 
 # -- Authentication --
