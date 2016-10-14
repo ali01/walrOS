@@ -29,6 +29,7 @@ SPREADSHEET_KEY_FILEPATH = os.path.expanduser("~/.walros/keys.json")
 
 DIRECTORY_PATH = os.path.expanduser("~/.walros/timer")
 ENDTIME_FILENAME = "endtime"
+LOCK_FILENAME = ".lock"
 RESUME_FILE_SUFFIX = "-paused"
 WORKSHEET_NAME = "Time"
 WORKSHEET_ID = 925912296  # Found in URL.
@@ -319,9 +320,15 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
       # TODO(alive): do not increment if track flag is false
       subprocess.call(["blink -q --rgb=0xff,0xa0,0x00 --blink=10 &"],
                       shell=True)
+    unlock_timer()
     sys.exit(0)
 
   signal.signal(signal.SIGINT, sigint_handler)
+
+  if not lock_timer():
+    click.echo("%s: A timer is already running." %
+               datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"))
+    return
 
   if not seconds and not minutes and not hours:
     seconds = FOCUS_UNIT_DURATION
@@ -375,6 +382,7 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
     click.echo(str(ex))
 
   finally:
+    unlock_timer()
     timer_notify()
 
 
@@ -474,6 +482,22 @@ def col_num_to_letter(column_number):
 
 def row_index(row_name):
   return HEADER_ROWS.index(row_name) + 1
+
+
+def lock_timer():
+  lock_filepath = timer_resource_path(LOCK_FILENAME)
+  if os.path.isfile(lock_filepath):
+    return False
+
+  with open(lock_filepath, 'w') as f:
+    f.flush()
+
+  return True
+
+def unlock_timer():
+  lock_filepath = timer_resource_path(LOCK_FILENAME)
+  if os.path.isfile(lock_filepath):
+    os.remove(lock_filepath)
 
 
 # -- Authentication --
