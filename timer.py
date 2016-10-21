@@ -35,7 +35,15 @@ WORKSHEET_NAME = "Time"
 WORKSHEET_ID = 925912296  # Found in URL.
 DATE_FORMAT = "%Y-%m-%d %A"
 
-HEADER_ROWS = ["TITLE", "LABELS", "TOTALS", "MEDIANS", "PERCENTILE", "MAX"]
+HEADER_ROWS = [
+  "TITLE",
+  "LABELS",
+  "TOTALS",
+  "MEDIANS",
+  "PERCENTILE_75",
+  "PERCENTILE_90",
+  "MAX"
+]
 
 # Margins
 ROW_MARGIN = len(HEADER_ROWS)
@@ -287,9 +295,12 @@ def build_update_statistics_requests(time_worksheet):
         row_index("MEDIANS"), i, median_formula, UpdateCellsMode.formula))
 
     # Percentile.
-    percentile_formula = "=PERCENTILE(%s, %f)" % (row_range, 0.90)
+    percentile_formula = "=PERCENTILE(%s, %f)"
     requests.append(time_worksheet.NewUpdateCellBatchRequest(
-        row_index("PERCENTILE"), i, percentile_formula,
+        row_index("PERCENTILE_75"), i, percentile_formula % (row_range, 0.75),
+        UpdateCellsMode.formula))
+    requests.append(time_worksheet.NewUpdateCellBatchRequest(
+        row_index("PERCENTILE_90"), i, percentile_formula % (row_range, 0.90),
         UpdateCellsMode.formula))
 
     # Max.
