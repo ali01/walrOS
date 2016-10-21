@@ -30,7 +30,7 @@ def init():
 
 
 @timer.command()
-@click.option("-l", "--label", default="code")
+@click.option("-l", "--label")
 @click.option("-s", "--seconds", default=0.0)
 @click.option("-m", "--minutes", default=0.0)
 @click.option("-h", "--hours", default=0.0)

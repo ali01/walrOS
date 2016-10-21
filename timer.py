@@ -336,6 +336,10 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
 
   signal.signal(signal.SIGINT, sigint_handler)
 
+  if not label:
+    click.echo("Please specify a timer label.")
+    return
+
   if not lock_timer():
     click.echo("%s: A timer is already running." %
                datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"))
