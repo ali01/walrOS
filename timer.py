@@ -47,14 +47,13 @@ HEADER_ROWS = [
 
 # Margins
 ROW_MARGIN = len(HEADER_ROWS)
-COLUMN_MARGIN = 2
+COLUMN_MARGIN = 5
 
 LAST_DAY_ROW_INDEX = ROW_MARGIN + 1
 
 # We currently assume that each day column is immediately followed
 # by a week column and a month column.
-ROW_STATS_COLUMN_INDICES = [2]
-DAY_COLUMN_INDICES = [3, 7, 11, 15, 19, 23, 27]
+DAY_COLUMN_INDICES = [2, 6, 10, 14, 18, 22, 26, 30]
 WEEK_COLUMN_INDICES = [x + 1 for x in DAY_COLUMN_INDICES]
 MONTH_COLUMN_INDICES = [x + 2 for x in DAY_COLUMN_INDICES]
 QUARTER_COLUMN_INDICES = [x + 3 for x in DAY_COLUMN_INDICES]
@@ -175,7 +174,7 @@ def build_new_day_requests(time_worksheet, today, last_date_tracked,
 
   # For today's row, write per-column zero counts and total count formula.
   total_count_formula = '='
-  for i in DAY_COLUMN_INDICES:
+  for i in DAY_COLUMN_INDICES[1:]:
     # Build total count formula.
     total_count_formula += "%s%d+" % (col_num_to_letter(i), row_index)
     requests.append(time_worksheet.NewUpdateCellBatchRequest(
@@ -272,10 +271,9 @@ def build_sum_formula_update(time_worksheet, target_row, target_column,
 
 def build_update_statistics_requests(time_worksheet):
   requests = []
-  cols_for_sums_update = ROW_STATS_COLUMN_INDICES + DAY_COLUMN_INDICES
-  cols_for_other_stats_update = (ROW_STATS_COLUMN_INDICES + DAY_COLUMN_INDICES +
-                                 WEEK_COLUMN_INDICES + MONTH_COLUMN_INDICES +
-                                 QUARTER_COLUMN_INDICES)
+  cols_for_sums_update = DAY_COLUMN_INDICES
+  cols_for_other_stats_update = (DAY_COLUMN_INDICES + WEEK_COLUMN_INDICES +
+                                 MONTH_COLUMN_INDICES + QUARTER_COLUMN_INDICES)
   # Totals.
   for i in cols_for_sums_update:
     column_letter = col_num_to_letter(i)
