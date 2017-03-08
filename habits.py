@@ -20,7 +20,7 @@ COLUMN_MARGIN = 5
 
 # We currently assume that each day column is immediately followed
 # by a week column and a month column.
-DAY_COLUMN_INDICES = [2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46]
+DAY_COLUMN_INDICES = [2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50]
 
 
 def init_command():
