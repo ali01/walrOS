@@ -3,6 +3,7 @@ import traceback
 
 import click
 
+import habits as habits_module
 import timer as timer_module
 
 
@@ -15,6 +16,7 @@ def walros():
 @click.pass_context
 def init(ctx):
   timer_module.init_command()
+  habits_module.init_command()
 
 
 # -- Timer --
@@ -22,7 +24,6 @@ def init(ctx):
 @walros.group()
 def timer():
   timer_module.setup()
-
 
 @timer.command()
 def init():
@@ -58,6 +59,17 @@ def clear(label):
 @click.argument("mod_expression")
 def mod(mod_expression):
   timer_module.mod_command(mod_expression)
+
+
+# -- Habits --
+
+@walros.group()
+def habits():
+  pass
+
+@habits.command()
+def init():
+  habits_module.init_command()
 
 
 if __name__ == "__main__":

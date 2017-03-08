@@ -7,6 +7,11 @@ import oauth2client
 from oauth2client import client
 from oauth2client import tools
 
+# TODO: move to walros_base
+APPLICATION_NAME = "walrOS"
+PERMISSION_SCOPES = "https://www.googleapis.com/auth/spreadsheets"
+CLIENT_SECRET_FILEPATH = "./.walros/client_secret.json"
+
 TEST_SPREADSHEET_ID = '1oDoWhImR3huPhwmmIZpGJFZybKOW6O07dMbha4O1mIE'
 TEST_WORKSHEET_ID = 0
 
