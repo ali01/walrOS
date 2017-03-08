@@ -22,6 +22,7 @@ class TrackerData(object):
     self.month_column_indices = []
     self.quarter_column_indices = []
     self.reduce_formula = None
+    self.init_writes_zeros = True
 
   @property
   def row_margin(self):
@@ -182,10 +183,10 @@ def build_new_day_requests(tracker_data, worksheet, today, last_date_tracked,
       week_merge_ranges, month_merge_ranges, quarter_merge_ranges)
 
   # For today's row, write per-column zero counts on anchor columns.
-  for i in tracker_data.all_anchor_column_indices:
-    # Build total count formula.
-    requests.append(worksheet.NewUpdateCellBatchRequest(
-        tracker_data.last_day_row_index, i, 0, UpdateCellsMode.number))
+  if tracker_data.init_writes_zeros:
+    for i in tracker_data.all_anchor_column_indices:
+      requests.append(worksheet.NewUpdateCellBatchRequest(
+          tracker_data.last_day_row_index, i, 0, UpdateCellsMode.number))
   return requests
 
 

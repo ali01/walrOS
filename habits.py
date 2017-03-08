@@ -38,6 +38,7 @@ def init_command():
   tracker_data.month_column_indices = MONTH_COLUMN_INDICES
   tracker_data.quarter_column_indices = QUARTER_COLUMN_INDICES
   tracker_data.reduce_formula = "AVERAGE"
+  tracker_data.init_writes_zeros = False
 
   spreadsheet = data_util.Spreadsheet(walros_base.SPREADSHEET_ID)
   worksheet = spreadsheet.GetWorksheet(tracker_data.worksheet_id)
