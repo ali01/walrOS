@@ -6,8 +6,9 @@ from data_util import UpdateCellsMode
 WORKSHEET_NAME = "Habits"
 WORKSHEET_ID = 751441428  # Found in URL.
 HEADER_ROWS = [
-  "TITLE",
-  "LABELS",
+  "TITLES",
+  "SCOPES",
+  "COLUMN_LABELS",
   "WEIGHTS",
   "MEDIANS",
   "PERCENTILE_75",
@@ -19,8 +20,11 @@ HEADER_ROWS = [
 COLUMN_MARGIN = 5
 
 # We currently assume that each day column is immediately followed
-# by a week column and a month column.
-DAY_COLUMN_INDICES = [2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50]
+# by week, month, and quarter columns.
+DAY_COLUMN_INDICES = [2, 6, 16, 26 ] + range(36, 73, 4)
+WEEK_COLUMN_INDICES = [ 10, 20, 30 ]
+MONTH_COLUMN_INDICES = [ 13, 23, 33 ]
+QUARTER_COLUMN_INDICES = [ 15, 25, 35 ]
 
 
 def init_command():
@@ -30,6 +34,9 @@ def init_command():
   tracker_data.column_margin = COLUMN_MARGIN
   tracker_data.header_rows = HEADER_ROWS
   tracker_data.day_column_indices = DAY_COLUMN_INDICES
+  tracker_data.week_column_indices = WEEK_COLUMN_INDICES
+  tracker_data.month_column_indices = MONTH_COLUMN_INDICES
+  tracker_data.quarter_column_indices = QUARTER_COLUMN_INDICES
   tracker_data.reduce_formula = "AVERAGE"
 
   spreadsheet = data_util.Spreadsheet(walros_base.SPREADSHEET_ID)

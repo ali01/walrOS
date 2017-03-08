@@ -22,8 +22,8 @@ import walros_base
 WORKSHEET_NAME = "Time"
 WORKSHEET_ID = 925912296  # Found in URL.
 HEADER_ROWS = [
-  "TITLE",
-  "LABELS",
+  "TITLES",
+  "COLUMN_LABELS",
   "TOTALS",
   "MEDIANS",
   "PERCENTILE_75",
@@ -35,7 +35,7 @@ HEADER_ROWS = [
 COLUMN_MARGIN = 5
 
 # We currently assume that each day column is immediately followed
-# by a week column and a month column.
+# by week, month, and quarter columns.
 DAY_COLUMN_INDICES = [2, 6, 10, 14, 18, 22, 26, 30]
 
 FOCUS_UNIT_DURATION = 1800  # Seconds (30 minutes).
@@ -194,8 +194,8 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
 
   try:
     if track:
-      worksheet = walros_worksheet(WORKSHEET_NAME)
-      latest_date = worksheet.cell(ROW_MARGIN + 1, 1).value
+      worksheet = walros_worksheet(tracker_data.worksheet_name)
+      latest_date = worksheet.cell(tracker_data.row_margin + 1, 1).value
       latest_date = latest_date.split()[0]
       date_today = datetime.datetime.now().strftime("%Y-%m-%d")
       if latest_date != date_today:
@@ -275,12 +275,12 @@ def timer_paused_filepaths():
 
 
 def timer_col_index_for_label(tracker_data, label):
-  worksheet = walros_worksheet(WORKSHEET_NAME)
-  row = worksheet.row_values(tracker_data.row_index("LABELS"))
-  row_labels = row[COLUMN_MARGIN:]
+  worksheet = walros_worksheet(tracker_data.worksheet_name)
+  row = worksheet.row_values(tracker_data.row_index("COLUMN_LABELS"))
+  row_labels = row[tracker_data.column_margin:]
   try:
     col_index = row_labels.index(label)
-    col_index += COLUMN_MARGIN + 1
+    col_index += tracker_data.column_margin + 1
   except ValueError:
     raise click.ClickException("Label %s not found in spreadsheet." % label)
 
@@ -288,8 +288,8 @@ def timer_col_index_for_label(tracker_data, label):
 
 
 def timer_increment_label_count(tracker_data, label):
-  worksheet = walros_worksheet(WORKSHEET_NAME)
-  count_cell = worksheet.cell(ROW_MARGIN + 1,
+  worksheet = walros_worksheet(tracker_data.worksheet_name)
+  count_cell = worksheet.cell(tracker_data.row_margin + 1,
                               timer_col_index_for_label(tracker_data, label))
   cell_value = 1 if not count_cell.value else int(count_cell.value) + 1
   count_cell.value = str(cell_value)
