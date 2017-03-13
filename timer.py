@@ -73,7 +73,7 @@ def init_tracker_data():
   tracker_data.column_margin = COLUMN_MARGIN
   tracker_data.header_rows = HEADER_ROWS
   tracker_data.day_column_indices = DAY_COLUMN_INDICES
-  tracker_data.reduce_formula = "SUM"
+  tracker_data.reduce_formula = "=SUM(%s)"
   return tracker_data
 
 def init_command():

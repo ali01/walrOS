@@ -271,13 +271,12 @@ def build_new_day_merge_requests(tracker_data, worksheet, today,
 # Helper to build and append update formula requests to a list.
 def build_reduce_formula_update(tracker_data, worksheet,
                                 target_row, target_column,
-                                sum_row_range, sum_column):
-  sum_range = "%s%d:%s%d" % (
-      col_num_to_letter(sum_column), sum_row_range[0],
-      col_num_to_letter(sum_column), sum_row_range[1])
-  formula = '=%s(%s)' % (tracker_data.reduce_formula, sum_range)
+                                formula_row_range, formula_column):
+  formula_range = "%s%d:%s%d" % (
+      col_num_to_letter(formula_column), formula_row_range[0],
+      col_num_to_letter(formula_column), formula_row_range[1])
   return worksheet.NewUpdateCellBatchRequest(
-      target_row, target_column, formula,
+      target_row, target_column, tracker_data.reduce_formula % formula_range,
       UpdateCellsMode.formula)
 
 
