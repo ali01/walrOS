@@ -276,7 +276,7 @@ def build_reduce_formula_update(tracker_data, worksheet,
       col_num_to_letter(formula_column), formula_row_range[0],
       col_num_to_letter(formula_column), formula_row_range[1])
   return worksheet.NewUpdateCellBatchRequest(
-      target_row, target_column, tracker_data.reduce_formula % formula_range,
+      target_row, target_column, tracker_data.reduce_formula(formula_range),
       UpdateCellsMode.formula)
 
 

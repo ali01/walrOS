@@ -73,7 +73,7 @@ def init_tracker_data():
   tracker_data.column_margin = COLUMN_MARGIN
   tracker_data.header_rows = HEADER_ROWS
   tracker_data.day_column_indices = DAY_COLUMN_INDICES
-  tracker_data.reduce_formula = "=SUM(%s)"
+  tracker_data.reduce_formula = lambda r: "=SUM(%s)" % r
   return tracker_data
 
 def init_command():
@@ -205,7 +205,8 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
       click.echo("%s count: %d" % (label, label_count))
 
   except Exception as ex:
-    click.echo(str(ex))
+    click.echo("Error updating spreadsheet count.")
+    raise ex
 
   finally:
     unlock_timer()
