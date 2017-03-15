@@ -45,8 +45,11 @@ SPREADSHEET_KEY_FILEPATH = os.path.expanduser("~/.walros/keys.json")
 
 DIRECTORY_PATH = os.path.expanduser("~/.walros/timer")
 ENDTIME_FILENAME = "endtime"
-LOCK_FILENAME = ".lock"
 RESUME_FILE_SUFFIX = "-paused"
+
+# Signals.
+SIGNALS_SUBDIR = ".signals"
+TIMER_RUNNING_SIGNAL = "timer_running"
 
 
 def setup():
@@ -63,10 +66,6 @@ def setup():
       write_float(f, 0.0)
 
 
-def cleanup():
-  subprocess.call(["blink", "-q", "--off"])
-
-
 def init_tracker_data():
   tracker_data = walros_base.TrackerData()
   tracker_data.worksheet_id = WORKSHEET_ID
@@ -76,6 +75,7 @@ def init_tracker_data():
   tracker_data.day_column_indices = DAY_COLUMN_INDICES
   tracker_data.reduce_formula = lambda r: "=SUM(%s)" % r
   return tracker_data
+
 
 def init_command():
   tracker_data = init_tracker_data()
@@ -139,10 +139,9 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
                  (datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
                   delta))
 
-      # TODO(alive): do not increment if track flag is false
       subprocess.call(["blink -q --rgb=0xff,0xa0,0x00 --blink=10 &"],
                       shell=True)
-    unlock_timer()
+    unset_signal(TIMER_RUNNING_SIGNAL)
     sys.exit(0)
 
   signal.signal(signal.SIGINT, sigint_handler)
@@ -152,7 +151,7 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
     click.echo("Please specify a timer label.")
     return
 
-  if not lock_timer():
+  if not set_signal(TIMER_RUNNING_SIGNAL):
     click.echo("%s: A timer is already running." %
                datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"))
     return
@@ -210,7 +209,7 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
     raise ex
 
   finally:
-    unlock_timer()
+    unset_signal(TIMER_RUNNING_SIGNAL)
     timer_notify()
 
 
@@ -244,7 +243,7 @@ def clear_command(label):
 def inc_command(delta):
   with OpenAndLock(timer_resource_path(ENDTIME_FILENAME), 'r+') as f:
     endtime = read_float(f)
-    if endtime - time.time() <= 0.0 or not timer_locked():
+    if endtime - time.time() <= 0.0 or not signal_is_set(TIMER_RUNNING_SIGNAL):
       click.echo("No timer is currently running.")
       return
 
@@ -269,6 +268,10 @@ def timer_notify():
 
 def timer_resource_path(name):
   return os.path.join(DIRECTORY_PATH, name)
+
+
+def timer_signal_path(signal_name):
+  return timer_resource_path(os.path.join(SIGNALS_SUBDIR, signal_name))
 
 
 def timer_resume_filepath(label):
@@ -318,29 +321,35 @@ def write_float(f, value):
   f.write("%f" % value)
 
 
-def lock_timer():
-  lock_filepath = timer_resource_path(LOCK_FILENAME)
-  if os.path.isfile(lock_filepath):
+def set_signal(signal_name):
+  signal_filepath = timer_signal_path(signal_name)
+  if os.path.isfile(signal_filepath):
     return False
 
-  with open(lock_filepath, 'w') as f:
+  with open(signal_filepath, 'w') as f:
     f.flush()
 
   return True
 
 
-def unlock_timer():
-  lock_filepath = timer_resource_path(LOCK_FILENAME)
-  if os.path.isfile(lock_filepath):
-    os.remove(lock_filepath)
+def unset_signal(signal_name):
+  signal_filepath = timer_signal_path(signal_name)
+  if os.path.isfile(signal_filepath):
+    os.remove(signal_filepath)
 
 
-def timer_locked():
-  lock_filepath = timer_resource_path(LOCK_FILENAME)
-  if os.path.isfile(lock_filepath):
+def signal_is_set(signal_name):
+  signal_filepath = timer_signal_path(signal_name)
+  if os.path.isfile(signal_filepath):
     return True
 
   return False
+
+
+def clear_signals():
+  signals_dirpath = os.path.join(DIRECTORY_PATH, SIGNALS_SUBDIR)
+  for signal_name in os.listdir(signals_dirpath):
+    os.remove(timer_signal_path(signal_name))
 
 
 # -- Authentication --
