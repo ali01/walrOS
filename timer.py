@@ -147,10 +147,6 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
   signal.signal(signal.SIGINT, sigint_handler)
   tracker_data = init_tracker_data()
 
-  if not label:
-    click.echo("Please specify a timer label.")
-    return
-
   if not set_signal(TIMER_RUNNING_SIGNAL):
     click.echo("%s: A timer is already running." %
                datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"))
@@ -230,14 +226,10 @@ def status_command(data):
 
 
 def clear_command(label):
-  if label:
-    try:
-      os.remove(timer_resource_path("%s%s" % (label, RESUME_FILE_SUFFIX)))
-    except OSError:
-      click.echo("No paused timer with label '%s' exists." % label)
-
-  else:
-    click.echo("Please specify a label to clear.")
+  try:
+    os.remove(timer_resource_path("%s%s" % (label, RESUME_FILE_SUFFIX)))
+  except OSError:
+    click.echo("No paused timer with label '%s' exists." % label)
 
 
 def inc_command(delta):
