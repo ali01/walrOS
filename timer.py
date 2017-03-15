@@ -50,6 +50,7 @@ RESUME_FILE_SUFFIX = "-paused"
 # Signals.
 SIGNALS_SUBDIR = ".signals"
 TIMER_RUNNING_SIGNAL = "timer_running"
+DISPLAY_UPDATE_SIGNAL = "display_update"
 
 
 def setup():
@@ -141,7 +142,7 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
 
       subprocess.call(["blink -q --rgb=0xff,0xa0,0x00 --blink=10 &"],
                       shell=True)
-    unset_signal(TIMER_RUNNING_SIGNAL)
+    clear_signals()
     sys.exit(0)
 
   signal.signal(signal.SIGINT, sigint_handler)
@@ -151,6 +152,8 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
     click.echo("%s: A timer is already running." %
                datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"))
     return
+
+  clear_signals(exclude=[TIMER_RUNNING_SIGNAL])
 
   if not seconds and not minutes and not hours:
     seconds = FOCUS_UNIT_DURATION
@@ -183,8 +186,14 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
     with OpenAndLock(endtime_filepath, 'r') as f:
       endtime = read_float(f)
 
-    if time.time() > endtime:
+    delta = endtime - time.time()
+    if delta <= 0.0:
       break
+
+    if unset_signal(DISPLAY_UPDATE_SIGNAL):
+      click.echo("%s: Currently at %d seconds." %
+                 (datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
+                  delta))
 
     time.sleep(1)
 
@@ -205,7 +214,7 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
     raise ex
 
   finally:
-    unset_signal(TIMER_RUNNING_SIGNAL)
+    clear_signals()
     timer_notify()
 
 
@@ -241,6 +250,7 @@ def inc_command(delta):
 
     endtime += delta
     write_float(f, endtime)
+    set_signal(DISPLAY_UPDATE_SIGNAL)
 
   delta = max(endtime - time.time(), 0.0)
   click.echo("  current: %f" % delta)
@@ -328,20 +338,22 @@ def unset_signal(signal_name):
   signal_filepath = timer_signal_path(signal_name)
   if os.path.isfile(signal_filepath):
     os.remove(signal_filepath)
+    return True
+  return False
 
 
 def signal_is_set(signal_name):
   signal_filepath = timer_signal_path(signal_name)
   if os.path.isfile(signal_filepath):
     return True
-
   return False
 
 
-def clear_signals():
+def clear_signals(exclude=[]):
   signals_dirpath = os.path.join(DIRECTORY_PATH, SIGNALS_SUBDIR)
   for signal_name in os.listdir(signals_dirpath):
-    os.remove(timer_signal_path(signal_name))
+    if signal_name not in exclude:
+      os.remove(timer_signal_path(signal_name))
 
 
 # -- Authentication --
