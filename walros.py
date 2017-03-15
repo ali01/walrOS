@@ -31,7 +31,7 @@ def init():
 
 
 @timer.command()
-@click.option("-l", "--label")
+@click.argument("label")
 @click.option("-s", "--seconds", default=0.0)
 @click.option("-m", "--minutes", default=0.0)
 @click.option("-h", "--hours", default=0.0)
@@ -50,7 +50,7 @@ def status(data):
 
 
 @timer.command()
-@click.option("-l", "--label")
+@click.argument("label")
 def clear(label):
   timer_module.clear_command(label)
 
