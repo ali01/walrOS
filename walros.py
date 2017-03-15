@@ -57,9 +57,14 @@ def clear(label):
 
 @timer.command()
 @click.argument("delta", type=float)
-@click.option("-n", "--negative", is_flag=True)
-def mod(delta, negative):
-  timer_module.mod_command(delta, negative)
+def inc(delta):
+  timer_module.inc_command(delta)
+
+
+@timer.command()
+@click.argument("delta", type=float)
+def dec(delta):
+  timer_module.inc_command(-1 * delta)
 
 
 # -- Habits --

@@ -241,17 +241,14 @@ def clear_command(label):
     click.echo("Please specify a label to clear.")
 
 
-def mod_command(delta, negative):
+def inc_command(delta):
   with OpenAndLock(timer_resource_path(ENDTIME_FILENAME), 'r+') as f:
     endtime = read_float(f)
     if endtime - time.time() <= 0.0 or not timer_locked():
       click.echo("No timer is currently running.")
       return
 
-    if negative:
-      delta *= -1
-
-    endtime += float(delta)
+    endtime += delta
     write_float(f, endtime)
 
   delta = max(endtime - time.time(), 0.0)
