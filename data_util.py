@@ -1,4 +1,5 @@
 import os
+import functools
 from enum import Enum
 
 from apiclient import discovery
@@ -112,6 +113,7 @@ class MergeRange(object):
 def memoize(init_fn):
   """Decorator to memoize initialization"""
   obj = []
+  @functools.wraps(init_fn)
   def wrapper_fn():
     if len(obj) == 0:
       obj.append(init_fn())

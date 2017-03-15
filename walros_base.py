@@ -4,7 +4,6 @@ import datetime
 import click
 
 import data_util
-from data_util import memoize
 from data_util import UpdateCellsMode
 
 SPREADSHEET_ID = "1JvO-sjs2kCFFD2FcX1a7XQ8uYyj-9o-anS9RElrtXYI"

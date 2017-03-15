@@ -1,5 +1,5 @@
 import datetime
-import time
+import fcntl
 import itertools
 import json
 import os
@@ -7,6 +7,7 @@ import os.path
 import signal
 import subprocess
 import sys
+import time
 
 import click
 
@@ -15,9 +16,10 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 import data_util
-from data_util import UpdateCellsMode
-
 import walros_base
+
+from data_util import UpdateCellsMode
+from util import OpenAndLock
 
 WORKSHEET_NAME = "Time"
 WORKSHEET_ID = 925912296  # Found in URL.
@@ -55,11 +57,10 @@ def setup():
   if not os.path.isdir(DIRECTORY_PATH):
     os.makedirs(DIRECTORY_PATH)
 
-  endtime_filepath = os.path.join(DIRECTORY_PATH, ENDTIME_FILENAME)
+  endtime_filepath = timer_resource_path(ENDTIME_FILENAME)
   if not os.path.isfile(endtime_filepath):
-    with open(endtime_filepath, 'w') as f:
-      f.write(str(0.0))
-      f.flush()
+    with OpenAndLock(endtime_filepath, 'w') as f:
+      write_float(f, 0.0)
 
 
 def cleanup():
@@ -123,16 +124,16 @@ def build_update_statistics_requests(worksheet, tracker_data):
 
 def start_command(label, seconds, minutes, hours, whitenoise, track, force):
   def sigint_handler(signum, frame):
-    with open(timer_resource_path(ENDTIME_FILENAME), 'r') as f:
-      endtime = float(f.read())
+    with OpenAndLock(timer_resource_path(ENDTIME_FILENAME), 'r') as f:
+      endtime = read_float(f)
 
-    with open(timer_resource_path(ENDTIME_FILENAME), 'w') as f:
-      f.write(str(0.0))
+    with OpenAndLock(timer_resource_path(ENDTIME_FILENAME), 'w') as f:
+      write_float(f, 0.0)
 
     delta = endtime - time.time()
     if delta > 0.0:
       with open(timer_resume_filepath(label), 'w') as f:
-        f.write(str(delta))
+        write_float(f, delta)
 
       click.echo("\n%s: Pausing timer at %d seconds." %
                  (datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
@@ -162,8 +163,9 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
   resume_filepath = timer_resume_filepath(label)
   if not force and os.path.isfile(resume_filepath):
     with open(resume_filepath, 'r') as f:
-      delta = float(f.read())
-      endtime = time.time() + delta
+      delta = read_float(f)
+
+    endtime = time.time() + delta
     os.remove(resume_filepath)
     click.echo("%s: Resuming at %d seconds." %
                (datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
@@ -176,16 +178,15 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
                 delta))
 
   endtime_filepath = timer_resource_path(ENDTIME_FILENAME)
-  with open(endtime_filepath, 'w') as f:
-    f.write(str(endtime))
-    f.flush()
+  with OpenAndLock(endtime_filepath, 'w') as f:
+    write_float(f, endtime)
 
   subprocess.call(["blink", "-q", "--red"])
 
   while True:
     # end time could have been changed; read again from file
-    with open(endtime_filepath, 'r') as f:
-      endtime = float(f.read())
+    with OpenAndLock(endtime_filepath, 'r') as f:
+      endtime = read_float(f)
 
     if time.time() > endtime:
       break
@@ -215,8 +216,9 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
 
 def status_command(data):
   # Running timer.
-  with open(timer_resource_path(ENDTIME_FILENAME), 'r') as f:
-    delta = max(float(f.read()) - time.time(), 0.0)
+  with OpenAndLock(timer_resource_path(ENDTIME_FILENAME), 'r') as f:
+    endtime = read_float(f)
+    delta = max(endtime - time.time(), 0.0)
     if delta > 0:
       click.echo("  current: %f" % delta)
 
@@ -224,7 +226,7 @@ def status_command(data):
   for timer in timer_paused_filepaths():
     label = os.path.basename(timer[:timer.rfind(RESUME_FILE_SUFFIX)])
     with open(timer, 'r') as f:
-      delta = float(f.read())
+      delta = read_float(f)
       click.echo("  %s: %f" % (label, delta))
 
 
@@ -239,11 +241,21 @@ def clear_command(label):
     click.echo("Please specify a label to clear.")
 
 
-def mod_command(mod_expression):
-  click.echo(mod_expression)
+def mod_command(delta, negative):
+  with OpenAndLock(timer_resource_path(ENDTIME_FILENAME), 'r+') as f:
+    endtime = read_float(f)
+    if endtime - time.time() <= 0.0 or not timer_locked():
+      click.echo("No timer is currently running.")
+      return
 
+    if negative:
+      delta *= -1
 
-# IAR: inc/dec commands?
+    endtime += float(delta)
+    write_float(f, endtime)
+
+  delta = max(endtime - time.time(), 0.0)
+  click.echo("  current: %f" % delta)
 
 
 def timer_notify():
@@ -298,6 +310,17 @@ def timer_increment_label_count(tracker_data, label):
   return cell_value
 
 
+def read_float(f):
+  f.seek(0)
+  return float(f.read().strip())
+
+
+def write_float(f, value):
+  f.seek(0)
+  f.truncate(0)
+  f.write("%f" % value)
+
+
 def lock_timer():
   lock_filepath = timer_resource_path(LOCK_FILENAME)
   if os.path.isfile(lock_filepath):
@@ -308,10 +331,19 @@ def lock_timer():
 
   return True
 
+
 def unlock_timer():
   lock_filepath = timer_resource_path(LOCK_FILENAME)
   if os.path.isfile(lock_filepath):
     os.remove(lock_filepath)
+
+
+def timer_locked():
+  lock_filepath = timer_resource_path(LOCK_FILENAME)
+  if os.path.isfile(lock_filepath):
+    return True
+
+  return False
 
 
 # -- Authentication --

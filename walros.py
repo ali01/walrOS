@@ -56,9 +56,10 @@ def clear(label):
 
 
 @timer.command()
-@click.argument("mod_expression")
-def mod(mod_expression):
-  timer_module.mod_command(mod_expression)
+@click.argument("delta", type=float)
+@click.option("-n", "--negative", is_flag=True)
+def mod(delta, negative):
+  timer_module.mod_command(delta, negative)
 
 
 # -- Habits --
