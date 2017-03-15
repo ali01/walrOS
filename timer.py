@@ -242,18 +242,20 @@ def clear_command(label):
 
 
 def inc_command(delta):
+  now = time.time()
   with OpenAndLock(timer_resource_path(ENDTIME_FILENAME), 'r+') as f:
     endtime = read_float(f)
-    if endtime - time.time() <= 0.0 or not signal_is_set(TIMER_RUNNING_SIGNAL):
+    remaining = endtime - now
+    if remaining <= 0.0 or not signal_is_set(TIMER_RUNNING_SIGNAL):
       click.echo("No timer is currently running.")
       return
 
     endtime += delta
     write_float(f, endtime)
-    set_signal(DISPLAY_UPDATE_SIGNAL)
 
-  delta = max(endtime - time.time(), 0.0)
-  click.echo("  current: %f" % delta)
+  set_signal(DISPLAY_UPDATE_SIGNAL)
+  click.echo("  previous: %f" % remaining)
+  click.echo("  current:  %f" % max(endtime - now, 0.0))
 
 
 def timer_notify():
