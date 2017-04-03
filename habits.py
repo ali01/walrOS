@@ -13,7 +13,10 @@ HEADER_ROWS = [
   "MEDIANS",
   "PERCENTILE_75",
   "PERCENTILE_90",
-  "MAX"
+  "MAX",
+  "GOAL_PERCENTILE",
+  "GOAL_NUMBER",
+  "PROGRESS",
 ]
 
 # Margins
