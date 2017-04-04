@@ -286,35 +286,3 @@ def col_num_to_letter(column_number):
     letter = chr(tmp + 65) + letter
     column_number = (column_number - tmp - 1) / 26
   return letter
-
-
-def build_standard_update_statistics_requests(worksheet, tracker_data):
-  requests = []
-  for i in tracker_data.all_column_indices:
-    column_letter = col_num_to_letter(i)
-    row_range = "%s%d:%s" % (column_letter, tracker_data.last_day_row_index,
-                             column_letter)
-
-    # Medians.
-    median_formula = "=MEDIAN(%s)" % row_range
-    requests.append(worksheet.NewUpdateCellBatchRequest(
-        tracker_data.row_index("MEDIANS"), i, median_formula,
-        UpdateCellsMode.formula))
-
-    # Percentile.
-    percentile_formula = "=PERCENTILE(%s, %f)"
-    requests.append(worksheet.NewUpdateCellBatchRequest(
-        tracker_data.row_index("PERCENTILE_75"), i,
-        percentile_formula % (row_range, 0.75),
-        UpdateCellsMode.formula))
-    requests.append(worksheet.NewUpdateCellBatchRequest(
-        tracker_data.row_index("PERCENTILE_90"), i,
-        percentile_formula % (row_range, 0.90),
-        UpdateCellsMode.formula))
-
-    # Max.
-    max_formula = "=MAX(%s)" % row_range
-    requests.append(worksheet.NewUpdateCellBatchRequest(
-        tracker_data.row_index("MAX"), i, max_formula, UpdateCellsMode.formula))
-
-  return requests

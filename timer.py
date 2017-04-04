@@ -100,9 +100,7 @@ def init_command():
 
 
 def build_update_statistics_requests(worksheet, tracker_data):
-  requests = (
-      walros_base.build_standard_update_statistics_requests(
-          worksheet, tracker_data))
+  requests = []
   for i in tracker_data.day_column_indices:
     column_letter = walros_base.col_num_to_letter(i)
     row_range = "%s%d:%s" % (column_letter, tracker_data.last_day_row_index,

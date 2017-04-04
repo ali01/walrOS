@@ -61,9 +61,7 @@ def init_command():
 
 
 def build_update_statistics_requests(worksheet, tracker_data):
-  requests = (
-      walros_base.build_standard_update_statistics_requests(
-          worksheet, tracker_data))
+  requests = []
   # Build score formula.
   score_formula = '=SUM('
   weights_row_index = tracker_data.row_index("WEIGHTS")
