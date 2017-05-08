@@ -33,20 +33,15 @@ class TrackerData(object):
 
   @property
   def week_merge_column_indices(self):
-    return self.week_column_indices + [ x + 1 for x in self.day_column_indices ]
+    return [ x + 1 for x in self.day_column_indices ]
 
   @property
   def month_merge_column_indices(self):
-    return (self.month_column_indices +
-            [ x + 1 for x in self.week_column_indices ] +
-            [ x + 2 for x in self.day_column_indices ])
+    return [ x + 2 for x in self.day_column_indices ]
 
   @property
   def quarter_merge_column_indices(self):
-    return (self.quarter_column_indices +
-            [ x + 1 for x in self.month_column_indices ] +
-            [ x + 2 for x in self.week_column_indices ] +
-            [ x + 3 for x in self.day_column_indices ])
+    return [ x + 3 for x in self.day_column_indices ]
 
   @property
   def all_column_indices(self):

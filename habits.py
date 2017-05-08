@@ -7,7 +7,6 @@ WORKSHEET_NAME = "Habits"
 WORKSHEET_ID = 751441428  # Found in URL.
 HEADER_ROWS = [
   "TITLES",
-  "SCOPES",
   "COLUMN_LABELS",
   "MEDIANS",
   "PERCENTILE_75",
@@ -24,10 +23,12 @@ COLUMN_MARGIN = 5
 
 # We currently assume that each day column is immediately followed
 # by week, month, and quarter columns.
-DAY_COLUMN_INDICES = [2, 6, 16, 26 ] + range(36, 73, 4)
-WEEK_COLUMN_INDICES = [ 10, 20, 30 ]
-MONTH_COLUMN_INDICES = [ 13, 23, 33 ]
-QUARTER_COLUMN_INDICES = [ 15, 25, 35 ]
+DAY_COLUMN_INDICES = range(2, 55, 4)
+
+# Aggregate columns that are independently/manually set:
+WEEK_COLUMN_INDICES = [ 7, 11, 15 ]
+MONTH_COLUMN_INDICES = [ 8, 12, 16 ]
+QUARTER_COLUMN_INDICES = [ 9, 13, 17 ]
 
 
 def init_command():
