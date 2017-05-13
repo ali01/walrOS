@@ -43,7 +43,7 @@ COLUMN_MARGIN = 5
 
 # We currently assume that each day column is immediately followed
 # by week, month, and quarter columns.
-DAY_COLUMN_INDICES = [2, 6, 10, 14, 18, 22, 26, 30, 34]
+DAY_COLUMN_INDICES = [2, 6, 10, 14, 18, 22, 26, 30, 34, 38]
 
 FOCUS_UNIT_DURATION = 1800  # Seconds (30 minutes).
 SPREADSHEET_KEY_FILEPATH = os.path.expanduser("~/.walros/keys.json")
