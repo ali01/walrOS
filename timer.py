@@ -59,9 +59,6 @@ DISPLAY_UPDATE_SIGNAL = "display_update"
 
 
 def setup():
-  # Kill all instances of blink.
-  subprocess.call(["killall blink &> /dev/null"], shell=True)
-
   # Initialize timer.
   if not os.path.isdir(DIRECTORY_PATH):
     os.makedirs(DIRECTORY_PATH)
@@ -142,9 +139,6 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
       click.echo("\n%s: Pausing timer at %d seconds." %
                  (datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
                   delta))
-
-      subprocess.call(["blink -q --rgb=0xff,0xa0,0x00 --blink=10 &"],
-                      shell=True)
     clear_signals()
     sys.exit(0)
 
@@ -181,8 +175,6 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
   endtime_filepath = timer_resource_path(ENDTIME_FILENAME)
   with OpenAndLock(endtime_filepath, 'w') as f:
     write_float(f, endtime)
-
-  subprocess.call(["blink", "-q", "--red"])
 
   while True:
     # end time could have been changed; read again from file
@@ -264,7 +256,6 @@ def inc_command(delta):
 def timer_notify():
   time_str = datetime.datetime.strftime(datetime.datetime.now(), "%H:%M")
   click.echo("%s: Notified" % time_str)
-  subprocess.call(["blink -q --blink=20 &"], shell=True)
   subprocess.call(["osascript -e \'display notification " +
                    "\"%s: notify\" with title \"walrOS timer\"\'" % time_str],
                   shell=True)
