@@ -1,4 +1,7 @@
+import datetime
 import fcntl
+
+import click
 
 class OpenAndLock(object):
   def __init__(self, filepath, open_mode):
@@ -18,3 +21,10 @@ class OpenAndLock(object):
     self.file_.flush()
     fcntl.lockf(self.file_.fileno(), fcntl.LOCK_UN)
     self.file_.close()
+
+
+# Echo log message with timestamp.
+def tlog(message):
+  click.echo("%s: %s." %
+             (datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
+              message))

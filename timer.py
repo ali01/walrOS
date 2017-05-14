@@ -16,6 +16,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 import data_util
+import log as log_module
 import walros_base
 
 from data_util import UpdateCellsMode
@@ -176,23 +177,24 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
   with OpenAndLock(endtime_filepath, 'w') as f:
     write_float(f, endtime)
 
-  while True:
-    # end time could have been changed; read again from file
-    with OpenAndLock(endtime_filepath, 'r') as f:
-      endtime = read_float(f)
 
-    delta = endtime - time.time()
-    if delta <= 0.0:
-      break
+  with log_module.Entry(label):  # Tracks effective time spent and overhead.
+    while True:  # Timer loop.
+      # end time could have been changed; read again from file
+      with OpenAndLock(endtime_filepath, 'r') as f:
+        endtime = read_float(f)
 
-    if unset_signal(DISPLAY_UPDATE_SIGNAL):
-      click.echo("%s: Currently at %d seconds." %
-                 (datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
-                  delta))
+      delta = endtime - time.time()
+      if delta <= 0.0:
+        break
 
-    time.sleep(1)
+      if unset_signal(DISPLAY_UPDATE_SIGNAL):
+        click.echo("%s: Currently at %d seconds." %
+                   (datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
+                    delta))
+      time.sleep(1)
 
-  try:
+  try:  # Notify and record.
     if track:
       worksheet = walros_worksheet(tracker_data.worksheet_name)
       latest_date = worksheet.cell(tracker_data.row_margin + 1, 1).value

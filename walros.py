@@ -4,6 +4,7 @@ import traceback
 import click
 
 import habits as habits_module
+import log as log_module
 import timer as timer_module
 
 
@@ -65,6 +66,32 @@ def inc(delta):
 @click.argument("delta", type=float)
 def dec(delta):
   timer_module.inc_command(-1 * delta)
+
+
+# -- Timed Tasks --
+
+@walros.group()
+def log():
+  log_module.setup()
+
+@log.command()
+@click.argument("label")
+def new(label):
+  log_module.new_command(label)
+
+@log.command()
+@click.argument("label")
+def done(label):
+  log_module.done_command(label)
+
+@log.command()
+@click.argument("label")
+def rm(label):
+  log_module.remove_command(label)
+
+@log.command()
+def status():
+  log_module.status_command()
 
 
 # -- Habits --
