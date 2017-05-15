@@ -1,7 +1,6 @@
 import datetime
 import fcntl
 import itertools
-import json
 import os
 import os.path
 import signal
@@ -15,12 +14,17 @@ import click
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
+import config
 import data_util
 import log as log_module
+import timer_db
+import util
 import walros_base
 
 from data_util import UpdateCellsMode
 from util import OpenAndLock
+
+_config = config.Config()
 
 WORKSHEET_NAME = "Time"
 WORKSHEET_ID = 925912296  # Found in URL.
@@ -49,10 +53,6 @@ DAY_COLUMN_INDICES = [2, 6, 10, 14, 18, 22, 26, 30, 34, 38]
 FOCUS_UNIT_DURATION = 1800  # Seconds (30 minutes).
 SPREADSHEET_KEY_FILEPATH = os.path.expanduser("~/.walros/keys.json")
 
-DIRECTORY_PATH = os.path.expanduser("~/.walros/timer")
-ENDTIME_FILENAME = "endtime"
-RESUME_FILE_SUFFIX = "-paused"
-
 # Signals.
 SIGNALS_SUBDIR = ".signals"
 TIMER_RUNNING_SIGNAL = "timer_running"
@@ -61,13 +61,8 @@ DISPLAY_UPDATE_SIGNAL = "display_update"
 
 def setup():
   # Initialize timer.
-  if not os.path.isdir(DIRECTORY_PATH):
-    os.makedirs(DIRECTORY_PATH)
-
-  endtime_filepath = timer_resource_path(ENDTIME_FILENAME)
-  if not os.path.isfile(endtime_filepath):
-    with OpenAndLock(endtime_filepath, 'w') as f:
-      write_float(f, 0.0)
+  if not os.path.isdir(_config.timer_dir):
+    os.makedirs(_config.timer_dir)
 
 
 def init_tracker_data():
@@ -88,8 +83,8 @@ def init_command():
   init_requests = walros_base.build_init_requests(tracker_data, spreadsheet,
                                                   worksheet)
   if len(init_requests) == 0:
-    click.echo("%s sheet is already initialized for today." %
-               tracker_data.worksheet_name)
+    util.tlog("%s sheet is already initialized for today" %
+              tracker_data.worksheet_name)
     return
 
   # Update sheet wide statistics.
@@ -98,7 +93,7 @@ def init_command():
   # Send requests.
   response = spreadsheet.BatchUpdate(init_requests)
 
-
+# TODO(alive): move sheets logic into separate module.
 def build_update_statistics_requests(worksheet, tracker_data):
   requests = []
   for i in tracker_data.day_column_indices:
@@ -125,21 +120,11 @@ def build_update_statistics_requests(worksheet, tracker_data):
 
 
 def start_command(label, seconds, minutes, hours, whitenoise, track, force):
-  def sigint_handler(signum, frame):
-    with OpenAndLock(timer_resource_path(ENDTIME_FILENAME), 'r') as f:
-      endtime = read_float(f)
-
-    with OpenAndLock(timer_resource_path(ENDTIME_FILENAME), 'w') as f:
-      write_float(f, 0.0)
-
-    delta = endtime - time.time()
-    if delta > 0.0:
-      with open(timer_resume_filepath(label), 'w') as f:
-        write_float(f, delta)
-
-      click.echo("\n%s: Pausing timer at %d seconds." %
-                 (datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
-                  delta))
+  def sigint_handler(signum, frame):  # TODO: put inside with statement instead.
+    with timer_db.TimerFileProxy(label) as timer:
+      remaining = timer.pause()
+      if not timer.is_complete:
+        util.tlog("Pausing timer at %d seconds" % timer.remaining, prefix='\n')
     clear_signals()
     sys.exit(0)
 
@@ -147,8 +132,7 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
   tracker_data = init_tracker_data()
 
   if not set_signal(TIMER_RUNNING_SIGNAL):
-    click.echo("%s: A timer is already running." %
-               datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"))
+    util.tlog("A timer is already running")
     return
 
   clear_signals(exclude=[TIMER_RUNNING_SIGNAL])
@@ -156,42 +140,30 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
   if not seconds and not minutes and not hours:
     seconds = FOCUS_UNIT_DURATION
 
-  resume_filepath = timer_resume_filepath(label)
-  if not force and os.path.isfile(resume_filepath):
-    with open(resume_filepath, 'r') as f:
-      delta = read_float(f)
+  if force and timer_db.timer_exists(label):
+    with timer_db.TimerFileProxy(label) as timer:
+      timer.clear()
 
-    endtime = time.time() + delta
-    os.remove(resume_filepath)
-    click.echo("%s: Resuming at %d seconds." %
-               (datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
-                delta))
+  if timer_db.timer_exists(label):
+    with timer_db.TimerFileProxy(label) as timer:
+      timer.resume()
+      util.tlog("Resuming at %d seconds" % timer.remaining)
+
   else:
-    delta = seconds + minutes * 60 + hours * 3600
-    endtime = time.time() + delta
-    click.echo("%s: Starting at %d seconds." %
-               (datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
-                delta))
-
-  endtime_filepath = timer_resource_path(ENDTIME_FILENAME)
-  with OpenAndLock(endtime_filepath, 'w') as f:
-    write_float(f, endtime)
-
+    with timer_db.TimerFileProxy(label) as timer:
+      timer.start(seconds, minutes, hours)
+      util.tlog("Starting at %d seconds" % timer.remaining)
 
   with log_module.Entry(label):  # Tracks effective time spent and overhead.
     while True:  # Timer loop.
       # end time could have been changed; read again from file
-      with OpenAndLock(endtime_filepath, 'r') as f:
-        endtime = read_float(f)
-
-      delta = endtime - time.time()
-      if delta <= 0.0:
-        break
-
-      if unset_signal(DISPLAY_UPDATE_SIGNAL):
-        click.echo("%s: Currently at %d seconds." %
-                   (datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
-                    delta))
+      with timer_db.TimerFileProxy(label) as timer:
+        if timer.is_complete:
+          util.tlog("Timer `%s` completed" % timer.label)
+          timer.clear()
+          break
+        if unset_signal(DISPLAY_UPDATE_SIGNAL):
+          util.tlog("Currently at %d seconds" % timer.remaining)
       time.sleep(1)
 
   try:  # Notify and record.
@@ -201,13 +173,13 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
       latest_date = latest_date.split()[0]
       date_today = datetime.datetime.now().strftime("%Y-%m-%d")
       if latest_date != date_today:
-        click.echo("Warning: the latest row in spreadsheet does not correspond "
-                   "to today's date.")
+        util.tlog("Warning: the latest row in spreadsheet does not correspond "
+                  "to today's date")
       label_count = timer_increment_label_count(tracker_data, label)
-      click.echo("%s count: %d" % (label, label_count))
+      util.tlog("%s count: %d" % (label, label_count))
 
   except Exception as ex:
-    click.echo("Error updating spreadsheet count.")
+    util.tlog("Error updating spreadsheet count")
     raise ex
 
   finally:
@@ -216,48 +188,48 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
 
 
 def status_command(data):
-  # Running timer.
-  with OpenAndLock(timer_resource_path(ENDTIME_FILENAME), 'r') as f:
-    endtime = read_float(f)
-    delta = max(endtime - time.time(), 0.0)
-    if delta > 0:
-      click.echo("  current: %f" % delta)
-
-  # Paused timers.
-  for timer in timer_paused_filepaths():
-    label = os.path.basename(timer[:timer.rfind(RESUME_FILE_SUFFIX)])
-    with open(timer, 'r') as f:
-      delta = read_float(f)
-      click.echo("  %s: %f" % (label, delta))
+  def timer_status_str(timer):
+    return '  %s: %d' % (timer.label, timer.remaining)
+  running_timer = timer_db.running_timer()
+  if running_timer:
+    with running_timer:
+      click.secho(timer_status_str(running_timer), fg='green')
+  for timer in timer_db.existing_timers():
+    with timer:
+      if timer.is_running:
+        continue
+      click.echo(timer_status_str(timer))
 
 
 def clear_command(label):
-  try:
-    os.remove(timer_resource_path("%s%s" % (label, RESUME_FILE_SUFFIX)))
-  except OSError:
-    click.echo("No paused timer with label '%s' exists." % label)
+  if timer_db.timer_exists(label):
+    with timer_db.TimerFileProxy(label) as timer:
+      if timer.is_running:
+        util.tlog("The timer with label `%s` is currently running" %
+                   timer.label)
+        return
+      timer.clear()
+  else:
+    util.tlog("No paused timer with label '%s' exists" % label)
 
 
 def inc_command(delta):
-  now = time.time()
-  with OpenAndLock(timer_resource_path(ENDTIME_FILENAME), 'r+') as f:
-    endtime = read_float(f)
-    remaining = endtime - now
-    if remaining <= 0.0 or not signal_is_set(TIMER_RUNNING_SIGNAL):
-      click.echo("No timer is currently running.")
-      return
-
-    endtime += delta
-    write_float(f, endtime)
-
+  # TODO: update log entry
+  timer = timer_db.running_timer()
+  if not timer:
+    util.tlog("No timer is currently running")
+    return
+  with timer:
+    remaining = timer.remaining
+    timer.inc(delta)
+    click.echo("  previous: %f" % remaining)
+    click.echo("  current:  %f" % timer.remaining)
   set_signal(DISPLAY_UPDATE_SIGNAL)
-  click.echo("  previous: %f" % remaining)
-  click.echo("  current:  %f" % max(endtime - now, 0.0))
 
 
 def timer_notify():
+  util.tlog("Notified")
   time_str = datetime.datetime.strftime(datetime.datetime.now(), "%H:%M")
-  click.echo("%s: Notified" % time_str)
   subprocess.call(["osascript -e \'display notification " +
                    "\"%s: notify\" with title \"walrOS timer\"\'" % time_str],
                   shell=True)
@@ -266,25 +238,8 @@ def timer_notify():
     time.sleep(2)
 
 
-def timer_resource_path(name):
-  return os.path.join(DIRECTORY_PATH, name)
-
-
 def timer_signal_path(signal_name):
-  return timer_resource_path(os.path.join(SIGNALS_SUBDIR, signal_name))
-
-
-def timer_resume_filepath(label):
-  resource_name = "%s%s" % (label, RESUME_FILE_SUFFIX)
-  return timer_resource_path(resource_name)
-
-
-def timer_paused_filepaths():
-  filenames = ( f for f in os.listdir(DIRECTORY_PATH)
-                if os.path.isfile(os.path.join(DIRECTORY_PATH, f)) )
-  timer_filenames = ( f for f in filenames
-                      if f.endswith(RESUME_FILE_SUFFIX))
-  return itertools.imap(timer_resource_path, timer_filenames)
+  return os.path.join(_config.timer_dir, SIGNALS_SUBDIR, signal_name)
 
 
 def timer_col_index_for_label(tracker_data, label):
@@ -310,17 +265,7 @@ def timer_increment_label_count(tracker_data, label):
   return cell_value
 
 
-def read_float(f):
-  f.seek(0)
-  return float(f.read().strip())
-
-
-def write_float(f, value):
-  f.seek(0)
-  f.truncate(0)
-  f.write("%f" % value)
-
-
+# TODO(alive): move signals into separate module.
 def set_signal(signal_name):
   signal_filepath = timer_signal_path(signal_name)
   if os.path.isfile(signal_filepath):
@@ -348,7 +293,7 @@ def signal_is_set(signal_name):
 
 
 def clear_signals(exclude=[]):
-  signals_dirpath = os.path.join(DIRECTORY_PATH, SIGNALS_SUBDIR)
+  signals_dirpath = os.path.join(_config.timer_dir, SIGNALS_SUBDIR)
   for signal_name in os.listdir(signals_dirpath):
     if signal_name not in exclude:
       os.remove(timer_signal_path(signal_name))

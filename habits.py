@@ -2,6 +2,7 @@ import walros_base
 import data_util
 from data_util import UpdateCellsMode
 
+import click
 
 WORKSHEET_NAME = "Habits"
 WORKSHEET_ID = 751441428  # Found in URL.

@@ -31,7 +31,7 @@ def new_command(label):
     'effective': 0.0,
   }
   with util.OpenAndLock(_resource_path(label), 'w') as f:
-    f.write(_json_dumps(entry))
+    f.write(util.json_dumps(entry))
   util.tlog("Log entry with label `%s` created" % label)
 
 
@@ -46,10 +46,10 @@ def done_command(label):
     span = now - entry['epoch']
     effective = entry['effective']
 
-    if abs(effective) < _TIME_EPSILON:
+    if util.isclose(effective, 0.0, abs_tol=_TIME_EPSILON):
       effective = span
 
-    if abs(span - effective) < _TIME_EPSILON:
+    if util.isclose(span - effective, 0.0, abs_tol=_TIME_EPSILON):
       overhead = 0.0
     else:
       overhead = (span - effective) / span
@@ -85,13 +85,15 @@ class Entry(object):
     If a log entry for the given label exists, this function sets its
     interval_start_time to the current time.
     """
+    # TODO(alive): rewrite with the paradigm used in timer_db.py.
     if os.path.isfile(_resource_path(self._label)):
+      # TODO(alive): there's a harmless and unlikely race condition here.
       with util.OpenAndLock(_resource_path(self._label), 'r+') as f:
         entry = json.load(f)
         entry['interval_start_time'] = time.time()
         f.seek(0)
         f.truncate(0)
-        f.write(_json_dumps(entry))
+        f.write(util.json_dumps(entry))
 
     return self
 
@@ -103,20 +105,17 @@ class Entry(object):
     interval_start_time.
     """
     if os.path.isfile(_resource_path(self._label)):
+      # TODO(alive): there's a harmless and unlikely race condition here.
       with util.OpenAndLock(_resource_path(self._label), 'r+') as f:
         entry = json.load(f)
         entry['effective'] += time.time() - entry['interval_start_time']
         f.seek(0)
         f.truncate(0)
-        f.write(_json_dumps(entry))
+        f.write(util.json_dumps(entry))
 
 
 def _resource_path(name):
   return os.path.join(_DIRECTORY_PATH, name)
-
-
-def _json_dumps(obj):
-  return json.dumps(obj, sort_keys=True, indent=2)
 
 
 def _format_timestamp(timestamp):

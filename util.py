@@ -1,5 +1,6 @@
 import datetime
 import fcntl
+import json
 
 import click
 
@@ -24,7 +25,14 @@ class OpenAndLock(object):
 
 
 # Echo log message with timestamp.
-def tlog(message):
-  click.echo("%s: %s." %
-             (datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
+def tlog(message, prefix=''):
+  click.echo("%s%s: %s." %
+             (prefix,
+              datetime.datetime.strftime(datetime.datetime.now(), "%H:%M"),
               message))
+
+def json_dumps(obj):
+  return json.dumps(obj, sort_keys=True, indent=2)
+
+def isclose(a, b, rel_tol=1e-09, abs_tol=0.0):
+    return abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
