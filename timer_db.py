@@ -27,7 +27,7 @@ def existing_timers():
 
 def running_timer():
   '''Returns the currently running timer or None if no timer is running.'''
-  # TODO(alive): re-implement in terms of signals.
+  # TODO(alive): re-implement in terms of signals?
   running_timer = None
   for timer in existing_timers():
     with timer:
@@ -99,6 +99,7 @@ class TimerFileProxy(object):
 
   @_check_preconditions(assert_running_is=False)
   def resume(self):
+    assert self.remaining >= 0
     self._timer_obj['endtime'] = int(round(time.time() + self.remaining))
 
   @_check_preconditions()
@@ -121,6 +122,7 @@ class TimerFileProxy(object):
   def __enter__(self):
     # TODO(alive): Should likely hold the file lock throughout the entire `with`
     #              statement.
+    # TODO(alive): Explicitly create timer files. This can cause subtle bugs.
     self._enter_called = True
     if not os.path.isfile(self.filepath):
       self._timer_obj = {

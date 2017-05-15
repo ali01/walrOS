@@ -64,6 +64,12 @@ def setup():
   if not os.path.isdir(_config.timer_dir):
     os.makedirs(_config.timer_dir)
 
+  def sigint_handler(signum, frame):  # TODO: put inside with statement instead.
+    clear_signals()
+    sys.exit(0)
+
+  signal.signal(signal.SIGINT, sigint_handler)
+
 
 def init_tracker_data():
   tracker_data = walros_base.TrackerData()
@@ -120,23 +126,12 @@ def build_update_statistics_requests(worksheet, tracker_data):
 
 
 def start_command(label, seconds, minutes, hours, whitenoise, track, force):
-  def sigint_handler(signum, frame):  # TODO: put inside with statement instead.
-    with timer_db.TimerFileProxy(label) as timer:
-      remaining = timer.pause()
-      if not timer.is_complete:
-        util.tlog("Pausing timer at %d seconds" % timer.remaining, prefix='\n')
-    clear_signals()
-    sys.exit(0)
-
-  signal.signal(signal.SIGINT, sigint_handler)
   tracker_data = init_tracker_data()
-
   if not set_signal(TIMER_RUNNING_SIGNAL):
     util.tlog("A timer is already running")
     return
 
   clear_signals(exclude=[TIMER_RUNNING_SIGNAL])
-
   if not seconds and not minutes and not hours:
     seconds = FOCUS_UNIT_DURATION
 
@@ -154,17 +149,25 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
       timer.start(seconds, minutes, hours)
       util.tlog("Starting at %d seconds" % timer.remaining)
 
-  with diary.Entry(label):  # Tracks effective time spent and overhead.
-    while True:  # Timer loop.
-      # end time could have been changed; read again from file
-      with timer_db.TimerFileProxy(label) as timer:
-        if timer.is_complete:
-          util.tlog("Timer `%s` completed" % timer.label)
-          timer.clear()
-          break
-        if unset_signal(DISPLAY_UPDATE_SIGNAL):
-          util.tlog("Currently at %d seconds" % timer.remaining)
-      time.sleep(1)
+  try:
+    with diary.Entry(label):  # Tracks effective time spent and overhead.
+      while True:  # Timer loop.
+        # end time could have been changed; read again from file
+        with timer_db.TimerFileProxy(label) as timer:
+          if timer.is_complete:
+            util.tlog("Timer `%s` completed" % timer.label)
+            break
+          if unset_signal(DISPLAY_UPDATE_SIGNAL):
+            util.tlog("Currently at %d seconds" % timer.remaining)
+        time.sleep(1)
+  finally:
+    with timer_db.TimerFileProxy(label) as timer:
+      if timer.is_complete:
+        timer.clear()
+      else:
+        remaining = timer.pause()
+        util.tlog("Pausing timer at %d seconds" % remaining, prefix='\n')
+    unset_signal(TIMER_RUNNING_SIGNAL)
 
   try:  # Notify and record.
     if track:
@@ -183,7 +186,6 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
     raise ex
 
   finally:
-    clear_signals()
     timer_notify()
 
 
