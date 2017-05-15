@@ -4,7 +4,7 @@ import traceback
 import click
 
 import habits as habits_module
-import log as log_module
+import diary as diary_module
 import timer as timer_module
 
 
@@ -68,30 +68,30 @@ def dec(delta):
   timer_module.inc_command(-1 * delta)
 
 
-# -- Timed Tasks --
+# -- Diary --
 
 @walros.group()
-def log():
-  log_module.setup()
+def diary():
+  diary_module.setup()
 
-@log.command()
+@diary.command()
 @click.argument("label")
 def new(label):
-  log_module.new_command(label)
+  diary_module.new_command(label)
 
-@log.command()
+@diary.command()
 @click.argument("label")
 def done(label):
-  log_module.done_command(label)
+  diary_module.done_command(label)
 
-@log.command()
+@diary.command()
 @click.argument("label")
 def rm(label):
-  log_module.remove_command(label)
+  diary_module.remove_command(label)
 
-@log.command()
+@diary.command()
 def status():
-  log_module.status_command()
+  diary_module.status_command()
 
 
 # -- Habits --

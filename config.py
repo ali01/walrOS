@@ -16,3 +16,8 @@ class Config(object):
   def timer_dir(self):
     return os.path.join(self.base_dir,
                         self._config_obj['timer_subdir'])
+
+  @property
+  def diary_dir(self):
+    return os.path.join(self.base_dir,
+                        self._config_obj['diary_subdir'])

@@ -16,7 +16,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 import config
 import data_util
-import log as log_module
+import diary
 import timer_db
 import util
 import walros_base
@@ -154,7 +154,7 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
       timer.start(seconds, minutes, hours)
       util.tlog("Starting at %d seconds" % timer.remaining)
 
-  with log_module.Entry(label):  # Tracks effective time spent and overhead.
+  with diary.Entry(label):  # Tracks effective time spent and overhead.
     while True:  # Timer loop.
       # end time could have been changed; read again from file
       with timer_db.TimerFileProxy(label) as timer:
