@@ -101,10 +101,11 @@ class TimerFileProxy(object):
   def resume(self):
     self._timer_obj['endtime'] = int(round(time.time() + self.remaining))
 
-  @_check_preconditions(assert_running_is=True)
+  @_check_preconditions()
   def pause(self):
-    self._timer_obj['remaining'] = int(round(self.endtime - time.time()))
-    self._timer_obj['endtime'] = 0
+    if self.is_running:
+      self._timer_obj['remaining'] = int(round(self.endtime - time.time()))
+      self._timer_obj['endtime'] = 0
     return self.remaining
 
   @_check_preconditions()

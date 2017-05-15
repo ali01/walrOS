@@ -122,8 +122,7 @@ def build_update_statistics_requests(worksheet, tracker_data):
 def start_command(label, seconds, minutes, hours, whitenoise, track, force):
   def sigint_handler(signum, frame):  # TODO: put inside with statement instead.
     with timer_db.TimerFileProxy(label) as timer:
-      if timer.is_running:
-        remaining = timer.pause()
+      remaining = timer.pause()
       if not timer.is_complete:
         util.tlog("Pausing timer at %d seconds" % timer.remaining, prefix='\n')
     clear_signals()
