@@ -8,6 +8,7 @@ import time
 import click
 
 import config
+import timer_db
 import util
 
 
@@ -34,7 +35,7 @@ def new_command(label):
   }
   with util.OpenAndLock(_resource_path(label), 'w') as f:
     f.write(util.json_dumps(entry))
-  util.tlog("Diary entry with label `%s` created" % label)
+  util.tlog("diary entry with label `%s` created" % label)
 
 
 def done_command(label):
@@ -43,11 +44,24 @@ def done_command(label):
     return
 
   with util.OpenAndLock(_resource_path(label), 'r') as f:
+    # TODO(alive): rewrite with the paradigm used in timer_db.py.
     entry = json.load(f)
     now = time.time()
     span = now - entry['epoch']
     effective = entry['effective']
 
+    # Handle ordering: new, __enter__, done, __exit__.
+    # Capture the amount of time elapsed after __enter__.
+    # See class Entry for more info.
+    timer = timer_db.running_timer()
+    if timer:
+      with timer:
+        if timer.label == label:
+          effective += time.time() - entry['interval_start_time']
+
+    # Handle orderings:
+    #   new, done, __enter__, __exit__
+    #   __enter__, __exit__, new, done
     if util.isclose(effective, 0.0, abs_tol=_TIME_EPSILON):
       effective = span
 
@@ -77,7 +91,6 @@ def status_command():
 
 
 class Entry(object):
-
   def __init__(self, label):
     self._label = label
 
@@ -86,6 +99,26 @@ class Entry(object):
 
     If a diary entry for the given label exists, this function sets its
     interval_start_time to the current time.
+
+    Possible interactions with timer:
+      Trivial orderings (no interaction):
+        1. new, done, __enter__, __exit__
+        2. __enter__, __exit__, new, done
+
+      Tricky orderings:
+        3. new, __enter__, __exit__, done
+           In this case, the __enter__ and __exit__ track all elapsed time.
+
+        4. __enter__, new, done, __exit__
+           In this case, new and done track all elapsed time.
+
+      Trickiest orderings:
+        5. new, __enter__, done, __exit__
+           In this case, done captures the amount of time elapsed after
+           __enter__.
+
+        6. __enter__, new, __exit__, done
+           In this case, __exit__ captures the amount of time elapsed after new.
     """
     # TODO(alive): rewrite with the paradigm used in timer_db.py.
     if os.path.isfile(_resource_path(self._label)):
