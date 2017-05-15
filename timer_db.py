@@ -109,7 +109,8 @@ class TimerFileProxy(object):
 
   @_check_preconditions()
   def clear(self):
-    self.pause()
+    if self.is_running:
+      self.pause()
     self._clear_called = True
 
   @_check_preconditions(assert_running_is=True)
@@ -117,6 +118,8 @@ class TimerFileProxy(object):
     self._timer_obj['endtime'] += delta
 
   def __enter__(self):
+    # TODO(alive): Should likely hold the file lock throughout the entire `with`
+    #              statement.
     self._enter_called = True
     if not os.path.isfile(self.filepath):
       self._timer_obj = {

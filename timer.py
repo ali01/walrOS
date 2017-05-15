@@ -214,7 +214,6 @@ def clear_command(label):
 
 
 def inc_command(delta):
-  # TODO: update log entry
   timer = timer_db.running_timer()
   if not timer:
     util.tlog("No timer is currently running")
@@ -224,6 +223,9 @@ def inc_command(delta):
     timer.inc(delta)
     click.echo("  previous: %f" % remaining)
     click.echo("  current:  %f" % timer.remaining)
+    if diary.increment_effective(timer.label, -1 * delta):
+      click.echo("  (diary updated)")
+
   set_signal(DISPLAY_UPDATE_SIGNAL)
 
 

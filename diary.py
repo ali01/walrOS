@@ -39,42 +39,57 @@ def new_command(label):
 
 
 def done_command(label):
+  # TODO(alive): Rewrite with the paradigm used in timer_db.py.
+  #              Move this logic into Entry.
   if not os.path.isfile(_resource_path(label)):
     util.tlog("No diary entry with label `%s` exists" % label)
     return
 
   with util.OpenAndLock(_resource_path(label), 'r') as f:
-    # TODO(alive): rewrite with the paradigm used in timer_db.py.
     entry = json.load(f)
-    now = time.time()
-    span = now - entry['epoch']
-    effective = entry['effective']
 
-    # Handle ordering: new, __enter__, done, __exit__.
+  now = time.time()
+  span = now - entry['epoch']
+  effective = entry['effective']
+
+  # Handle orderings:
+  #   1. __enter__, new, done, __exit__.
+  #   2. new, done, __enter__, __exit__.
+  #   3. __enter__, __exit__, new, done.
+  #
+  # If we are in any of the above orderings AND effective is 0.0, then we
+  # simply set `effective` to `span`. In these cases, there is no interaction
+  # between diary and timer.
+  #
+  # If, however, the first condition is True, but the second is false, then
+  # we must be in case #1 above. The only way for `effective` to be non-zero
+  # here is for the user to have called timer.inc(). This is only possible
+  # if a timer is running, and therefore, cases #2 and #3 are ruled out. The
+  # else block handles this case.
+  if (util.isclose(entry['epoch'], entry['interval_start_time']) and
+      util.isclose(effective, 0.0)):
+    effective = span
+  else:
+    # Handle orderings:
+    #   1. __enter__, new, done, __exit__ (with call to timer.inc()).
+    #   5. new, __enter__, done, __exit__.
     # Capture the amount of time elapsed after __enter__.
-    # See class Entry for more info.
     timer = timer_db.running_timer()
     if timer:
       with timer:
         if timer.label == label:
           effective += time.time() - entry['interval_start_time']
 
-    # Handle orderings:
-    #   new, done, __enter__, __exit__
-    #   __enter__, __exit__, new, done
-    if util.isclose(effective, 0.0, abs_tol=_TIME_EPSILON):
-      effective = span
+  if util.isclose(span - effective, 0.0, abs_tol=_TIME_EPSILON):
+    overhead = 0.0
+  else:
+    overhead = (span - effective) / span
 
-    if util.isclose(span - effective, 0.0, abs_tol=_TIME_EPSILON):
-      overhead = 0.0
-    else:
-      overhead = (span - effective) / span
-
-    click.echo(" Start time:    %s" % _format_timestamp(entry['epoch']))
-    click.echo(" End time:      %s" % _format_timestamp(now))
-    click.echo(" Span (m):      %.2f" % (span / 60.0))
-    click.echo(" Effective (m): %.2f" % (effective / 60.0))
-    click.echo(" Overhead (%%):  %.1f%%" % (overhead * 100.0))
+  click.echo(" Start time:    %s" % _format_timestamp(entry['epoch']))
+  click.echo(" End time:      %s" % _format_timestamp(now))
+  click.echo(" Span (m):      %.2f" % (span / 60.0))
+  click.echo(" Effective (m): %.2f" % (effective / 60.0))
+  click.echo(" Overhead (%%):  %.1f%%" % (overhead * 100.0))
 
   os.remove(_resource_path(label))
 
@@ -87,7 +102,22 @@ def remove_command(label):
 
 
 def status_command():
+  # TODO(alive): implement
   util.tlog("Wawaaw... Not implemented yet :(")
+
+
+# TODO(alive): move into Entry
+def increment_effective(label, delta):
+  if not os.path.isfile(_resource_path(label)):
+    return False
+
+  with util.OpenAndLock(_resource_path(label), 'r+') as f:
+    entry = json.load(f)
+    entry['effective'] += delta  # Can validly result in negative numbers.
+    f.truncate(0)
+    f.seek(0)
+    f.write(util.json_dumps(entry))
+  return True
 
 
 class Entry(object):
@@ -102,17 +132,16 @@ class Entry(object):
 
     Possible interactions with timer:
       Trivial orderings (no interaction):
+      In these cases, new and done track all elapsed time.
         1. new, done, __enter__, __exit__
         2. __enter__, __exit__, new, done
+        3. __enter__, new, done, __exit__
+
+      In this case, __enter__ and __exit__ track all elapsed time.
+        4. new, __enter__, __exit__, done
+
 
       Tricky orderings:
-        3. new, __enter__, __exit__, done
-           In this case, the __enter__ and __exit__ track all elapsed time.
-
-        4. __enter__, new, done, __exit__
-           In this case, new and done track all elapsed time.
-
-      Trickiest orderings:
         5. new, __enter__, done, __exit__
            In this case, done captures the amount of time elapsed after
            __enter__.
@@ -136,8 +165,7 @@ class Entry(object):
     """Signals this module that the timer is running on the given label.
 
     If a diary entry for the given label exists, this function increments its
-    'effective' field by (time.time() - interval_start_time) and then resets
-    interval_start_time.
+    'effective' field by (time.time() - interval_start_time).
     """
     if os.path.isfile(_resource_path(self._label)):
       # TODO(alive): there's a harmless and unlikely race condition here.
