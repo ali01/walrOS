@@ -27,9 +27,9 @@ COLUMN_MARGIN = 5
 DAY_COLUMN_INDICES = range(2, 51, 4)
 
 # Aggregate columns that are independently/manually set:
-WEEK_COLUMN_INDICES = [ 7, 11, 15 ]
-MONTH_COLUMN_INDICES = [ 8, 12, 16 ]
-QUARTER_COLUMN_INDICES = [ 9, 13, 17 ]
+WEEK_COLUMN_INDICES = [ 7, 11 ]
+MONTH_COLUMN_INDICES = [ 8, 12 ]
+QUARTER_COLUMN_INDICES = [ 9, 13 ]
 
 
 def init_command():
