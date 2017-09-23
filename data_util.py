@@ -89,7 +89,7 @@ class Worksheet(object):
           {
             'values': {
               'userEnteredValue': {
-                update_cells_mode.value: value,
+                update_cells_mode: value,
               },
             },
           },
