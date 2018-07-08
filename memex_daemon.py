@@ -163,7 +163,6 @@ def init_milk():
     api_key = keys['rtm_api_key']
     secret = keys['rtm_secret']
     token = keys['rtm_token']
-    rtmapi = rtm(api_key, secret, 'delete', token)
     milk = Milk(api_key, secret, token, 'delete')
     return milk
 
