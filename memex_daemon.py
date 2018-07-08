@@ -213,7 +213,7 @@ def memex(milk):
             continue
 
         if not interval:
-            interval = 8
+            interval = 4
 
         # create next task in review series
         task.due = task.completed + timedelta(interval)
