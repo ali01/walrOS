@@ -11,7 +11,7 @@ from oauth2client import tools
 # TODO: move to walros_base
 APPLICATION_NAME = "walrOS"
 PERMISSION_SCOPES = "https://www.googleapis.com/auth/spreadsheets"
-CLIENT_SECRET_FILEPATH = "./.walros/client_secret.json"
+CLIENT_SECRET_FILEPATH = "~/.walros/client_secret.json"
 
 TEST_SPREADSHEET_ID = '1oDoWhImR3huPhwmmIZpGJFZybKOW6O07dMbha4O1mIE'
 TEST_WORKSHEET_ID = 0
@@ -149,7 +149,8 @@ def GetCredentials():
     store = oauth2client.file.Storage(credential_path)
     credentials = store.get()
     if not credentials or credentials.invalid:
-        flow = client.flow_from_clientsecrets(CLIENT_SECRET_FILEPATH,
+        flow = client.flow_from_clientsecrets(os.path.expanduser(
+                                                  CLIENT_SECRET_FILEPATH),
                                               PERMISSION_SCOPES)
         flow.user_agent = APPLICATION_NAME
 
