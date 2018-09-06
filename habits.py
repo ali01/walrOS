@@ -24,7 +24,7 @@ COLUMN_MARGIN = 5
 
 # We currently assume that each day column is immediately followed
 # by week, month, and quarter columns.
-DAY_COLUMN_INDICES = range(2, 51, 4)
+DAY_COLUMN_INDICES = range(2, 47, 4)
 
 # Aggregate columns that are independently/manually set:
 WEEK_COLUMN_INDICES = []
