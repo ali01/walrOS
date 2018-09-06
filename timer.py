@@ -10,8 +10,6 @@ import time
 
 import click
 
-# TODO(alive): move away from gspread
-import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 import config
@@ -171,14 +169,18 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
 
   try:  # Notify and record.
     if track:
-      worksheet = walros_worksheet(tracker_data.worksheet_name)
-      latest_date = worksheet.cell(tracker_data.row_margin + 1, 1).value
+      spreadsheet = data_util.Spreadsheet(walros_base.SPREADSHEET_ID)
+      worksheet = spreadsheet.GetWorksheet(tracker_data.worksheet_id)
+      latest_date = spreadsheet.GetCellValue(
+          worksheet_name=tracker_data.worksheet_name,
+          row=tracker_data.row_margin + 1, col=1)
       latest_date = latest_date.split()[0]
       date_today = datetime.datetime.now().strftime("%Y-%m-%d")
       if latest_date != date_today:
         util.tlog("Warning: the latest row in spreadsheet does not correspond "
                   "to today's date")
-      label_count = timer_increment_label_count(tracker_data, label)
+      label_count = timer_increment_label_count(
+          spreadsheet, worksheet, tracker_data, label)
       util.tlog("%s count: %d" % (label, label_count))
 
   except Exception as ex:
@@ -246,10 +248,13 @@ def timer_signal_path(signal_name):
   return os.path.join(_config.timer_dir, SIGNALS_SUBDIR, signal_name)
 
 
-def timer_col_index_for_label(tracker_data, label):
-  worksheet = walros_worksheet(tracker_data.worksheet_name)
-  row = worksheet.row_values(tracker_data.row_index("COLUMN_LABELS"))
-  row_labels = row[tracker_data.column_margin:]
+def timer_col_index_for_label(spreadsheet, worksheet, tracker_data, label):
+  row_index = tracker_data.row_index("COLUMN_LABELS")
+  ranges = ["%s!%d:%d" % (tracker_data.worksheet_name, row_index, row_index)]
+  response = spreadsheet.GetRanges(ranges, "sheets/data/rowData")
+  row_data = response["sheets"][0]["data"][0]["rowData"][0]["values"]
+  row_data = row_data[tracker_data.column_margin:]
+  row_labels = [ col["effectiveValue"]["stringValue"] for col in row_data ]
   try:
     col_index = row_labels.index(label)
     col_index += tracker_data.column_margin + 1
@@ -259,13 +264,17 @@ def timer_col_index_for_label(tracker_data, label):
   return col_index
 
 
-def timer_increment_label_count(tracker_data, label):
-  worksheet = walros_worksheet(tracker_data.worksheet_name)
-  count_cell = worksheet.cell(tracker_data.row_margin + 1,
-                              timer_col_index_for_label(tracker_data, label))
-  cell_value = 1 if not count_cell.value else int(count_cell.value) + 1
-  count_cell.value = str(cell_value)
-  worksheet.update_cells([count_cell])
+def timer_increment_label_count(spreadsheet, worksheet, tracker_data, label):
+  row = tracker_data.row_margin + 1
+  col = timer_col_index_for_label(spreadsheet, worksheet, tracker_data, label)
+  cell_value = spreadsheet.GetCellValue(tracker_data.worksheet_name, row, col)
+  cell_value = 1 if not cell_value else int(cell_value) + 1
+
+  requests = []
+  requests.append(worksheet.NewUpdateCellBatchRequest(
+      row, col, cell_value, update_cells_mode=data_util.UpdateCellsMode.number))
+  spreadsheet.BatchUpdate(requests)
+
   return cell_value
 
 
@@ -301,19 +310,4 @@ def clear_signals(exclude=[]):
   for signal_name in os.listdir(signals_dirpath):
     if signal_name not in exclude:
       os.remove(timer_signal_path(signal_name))
-
-
-# -- Authentication --
-# TODO: move away from gSpread
-def walros_spreadsheet():
-  scopes = ['https://spreadsheets.google.com/feeds']
-  credentials = ServiceAccountCredentials.from_json_keyfile_name(
-      SPREADSHEET_KEY_FILEPATH, scopes=scopes)
-  gclient = gspread.authorize(credentials)
-  return gclient.open("walrOS")
-
-
-def walros_worksheet(worksheet_name):
-  spreadsheet = walros_spreadsheet()
-  return spreadsheet.worksheet(worksheet_name)
 

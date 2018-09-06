@@ -1,6 +1,7 @@
 import os
 import functools
 from enum import Enum
+import string
 
 from apiclient import discovery
 import httplib2
@@ -13,7 +14,7 @@ APPLICATION_NAME = "walrOS"
 PERMISSION_SCOPES = "https://www.googleapis.com/auth/spreadsheets"
 CLIENT_SECRET_FILEPATH = "~/.walros/client_secret.json"
 
-TEST_SPREADSHEET_ID = '1oDoWhImR3huPhwmmIZpGJFZybKOW6O07dMbha4O1mIE'
+TEST_SPREADSHEET_ID = '1P_e-Tu-ZeY4fHluoMEmtg9p5pq7OLddoEEdhNqEvyVQ'
 TEST_WORKSHEET_ID = 0
 
 class Spreadsheet(object):
@@ -27,8 +28,15 @@ class Spreadsheet(object):
 
   def GetRanges(self, ranges, fields):
     return self.sheets_.get(spreadsheetId=self.spreadsheet_id_,
-                               includeGridData=False, ranges=ranges,
-                               fields=fields).execute()
+                            includeGridData=False, ranges=ranges,
+                            fields=fields).execute()
+
+  def GetCellValue(self, worksheet_name, row, col):
+    request = self.sheets_.values().get(
+        spreadsheetId=self.spreadsheet_id_,
+        range="%s!%s%d" % (worksheet_name, num2col(col), row))
+    response = request.execute()
+    return response["values"][0][0]
 
   def BatchUpdate(self, batch_requests):
     return self.sheets_.batchUpdate(spreadsheetId=self.spreadsheet_id_,
@@ -166,10 +174,31 @@ def GetCredentials():
 
 # -- Helper Functions --
 
+def col2num(col):
+    num = 0
+    for c in col:
+        if c in string.ascii_letters:
+            num = num * 26 + (ord(c.upper()) - ord('A')) + 1
+    return num
+
+
+def num2col(n):
+    s = ""
+    while n > 0:
+        n, remainder = divmod(n - 1, 26)
+        s = chr(65 + remainder) + s
+    return s
+
+
 if __name__ == '__main__':
   sheet = Spreadsheet(TEST_SPREADSHEET_ID)
   worksheet = sheet.GetWorksheet(TEST_WORKSHEET_ID)
 
   requests = []
-  requests.append(worksheet.NewInsertRowsBatchRequest(4, 2))
+  requests.append(worksheet.NewUpdateCellBatchRequest(
+      1, 1, 42, update_cells_mode=UpdateCellsMode.number))
   sheet.BatchUpdate(requests)
+
+  print sheet.GetCellValue("Sheet1", 1, 1)
+
+
