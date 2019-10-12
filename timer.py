@@ -49,6 +49,7 @@ COLUMN_MARGIN = 5
 DAY_COLUMN_INDICES = [2, 6, 10, 14, 18, 22, 26, 30, 34, 38]
 
 FOCUS_UNIT_DURATION = 1800  # Seconds (30 minutes).
+BASE_INTERRUPTION_PENALTY = 0.04 # Time units
 SPREADSHEET_KEY_FILEPATH = os.path.expanduser("~/.walros/keys.json")
 
 # Signals.
@@ -160,28 +161,32 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
         time.sleep(1)
   finally:
     with timer_db.TimerFileProxy(label) as timer:
-      if timer.is_complete:
-        timer.clear()
-      else:
+      if not timer.is_complete:
         remaining = timer.pause()
         util.tlog("Pausing timer at %d seconds" % remaining, prefix='\n')
     unset_signal(TIMER_RUNNING_SIGNAL)
 
-  try:  # Notify and record.
+  try:  # Timer complete, notify and record.
     if track:
-      spreadsheet = data_util.Spreadsheet(walros_base.SPREADSHEET_ID)
-      worksheet = spreadsheet.GetWorksheet(tracker_data.worksheet_id)
-      latest_date = spreadsheet.GetCellValue(
-          worksheet_name=tracker_data.worksheet_name,
-          row=tracker_data.row_margin + 1, col=1)
-      latest_date = latest_date.split()[0]
-      date_today = datetime.datetime.now().strftime("%Y-%m-%d")
-      if latest_date != date_today:
-        util.tlog("Warning: the latest row in spreadsheet does not correspond "
-                  "to today's date")
-      label_count = timer_increment_label_count(
-          spreadsheet, worksheet, tracker_data, label)
-      util.tlog("%s count: %d" % (label, label_count))
+      with timer_db.TimerFileProxy(label) as timer:
+        spreadsheet = data_util.Spreadsheet(walros_base.SPREADSHEET_ID)
+        worksheet = spreadsheet.GetWorksheet(tracker_data.worksheet_id)
+        latest_date = spreadsheet.GetCellValue(
+            worksheet_name=tracker_data.worksheet_name,
+            row=tracker_data.row_margin + 1, col=1)
+        latest_date = latest_date.split()[0]
+        date_today = datetime.datetime.now().strftime("%Y-%m-%d")
+        if latest_date != date_today:
+          util.tlog("Warning: the latest row in spreadsheet does not correspond "
+                    "to today's date")
+        credit = 1
+        if timer.interruptions > 0:
+          # Impose exponential cost to interruptions.
+          credit -= BASE_INTERRUPTION_PENALTY * 2 ** (timer.interruptions - 1)
+        label_count = timer_increment_label_count(
+            spreadsheet, worksheet, tracker_data, label, credit)
+        util.tlog("%s count: %.2f" % (label, label_count))
+        timer.clear()
 
   except Exception as ex:
     util.tlog("Error updating spreadsheet count")
@@ -264,11 +269,12 @@ def timer_col_index_for_label(spreadsheet, worksheet, tracker_data, label):
   return col_index
 
 
-def timer_increment_label_count(spreadsheet, worksheet, tracker_data, label):
+def timer_increment_label_count(spreadsheet, worksheet, tracker_data, label,
+                                credit):
   row = tracker_data.row_margin + 1
   col = timer_col_index_for_label(spreadsheet, worksheet, tracker_data, label)
   cell_value = spreadsheet.GetCellValue(tracker_data.worksheet_name, row, col)
-  cell_value = 1 if not cell_value else int(cell_value) + 1
+  cell_value = credit if not cell_value else int(cell_value) + credit
 
   requests = []
   requests.append(worksheet.NewUpdateCellBatchRequest(

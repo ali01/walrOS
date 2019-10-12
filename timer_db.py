@@ -79,6 +79,11 @@ class TimerFileProxy(object):
 
   @property
   @_check_preconditions()
+  def interruptions(self):
+    return self._timer_obj['interruptions']
+
+  @property
+  @_check_preconditions()
   def filepath(self):
     return _timer_filepath(self._label)
 
@@ -107,6 +112,7 @@ class TimerFileProxy(object):
     if self.is_running:
       self._timer_obj['remaining'] = int(round(self.endtime - time.time()))
       self._timer_obj['endtime'] = 0
+      self._timer_obj['interruptions'] += 1
     return self.remaining
 
   @_check_preconditions()
@@ -128,7 +134,8 @@ class TimerFileProxy(object):
       self._timer_obj = {
         'label': self._label,
         'endtime': 0,  # This field is 0 when the timer is not running.
-        'remaining': sys.maxint
+        'remaining': sys.maxint,
+        'interruptions': 0
       }
       with util.OpenAndLock(self.filepath, 'w') as f:
         f.write(util.json_dumps(self._timer_obj))
