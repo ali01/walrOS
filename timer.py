@@ -274,7 +274,7 @@ def timer_increment_label_count(spreadsheet, worksheet, tracker_data, label,
   row = tracker_data.row_margin + 1
   col = timer_col_index_for_label(spreadsheet, worksheet, tracker_data, label)
   cell_value = spreadsheet.GetCellValue(tracker_data.worksheet_name, row, col)
-  cell_value = credit if not cell_value else int(cell_value) + credit
+  cell_value = credit if not cell_value else float(cell_value) + credit
 
   requests = []
   requests.append(worksheet.NewUpdateCellBatchRequest(
