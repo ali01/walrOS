@@ -179,12 +179,19 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
         if latest_date != date_today:
           util.tlog("Warning: the latest row in spreadsheet does not correspond "
                     "to today's date")
+
         credit = 1
-        if timer.interruptions > 0:
+        timer_interruptions = timer.interruptions
+        while timer_interruptions > 0:
           # Impose exponential cost to interruptions.
-          credit -= BASE_INTERRUPTION_PENALTY * 2 ** (timer.interruptions - 1)
+          timer_interruptions -= 1
+          credit -= BASE_INTERRUPTION_PENALTY * 2 ** timer_interruptions
+        credit = max(credit, 0)
+
         label_count = timer_increment_label_count(
             spreadsheet, worksheet, tracker_data, label, credit)
+        util.tlog("interruptions: %d, credit: %.2f" %
+                  (timer.interruptions, credit))
         util.tlog("%s count: %.2f" % (label, label_count))
         timer.clear()
 
