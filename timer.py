@@ -124,7 +124,8 @@ def build_update_statistics_requests(worksheet, tracker_data):
   return requests
 
 
-def start_command(label, seconds, minutes, hours, whitenoise, track, force):
+def start_command(label, seconds, minutes, hours, whitenoise, count, track,
+                  force):
   tracker_data = init_tracker_data()
   if not set_signal(TIMER_RUNNING_SIGNAL):
     util.tlog("A timer is already running")
@@ -132,7 +133,7 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
 
   clear_signals(exclude=[TIMER_RUNNING_SIGNAL])
   if not seconds and not minutes and not hours:
-    seconds = FOCUS_UNIT_DURATION
+    seconds = FOCUS_UNIT_DURATION * count
 
   if force and timer_db.timer_exists(label):
     with timer_db.TimerFileProxy(label) as timer:
@@ -180,7 +181,7 @@ def start_command(label, seconds, minutes, hours, whitenoise, track, force):
           util.tlog("Warning: the latest row in spreadsheet does not correspond "
                     "to today's date")
 
-        credit = 1
+        credit = count
         timer_interruptions = timer.interruptions
         while timer_interruptions > 0:
           # Impose exponential cost to interruptions.
