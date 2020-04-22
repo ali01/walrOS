@@ -38,13 +38,15 @@ def init():
 @click.option("-h", "--hours", default=0.0)
 @click.option("-w", "--whitenoise", is_flag=True)
 @click.option("-d", "--diary", is_flag=True, default=False)
+@click.option("-c", "--count", default=1)
 @click.option("--track/--no-track", default=True)
 @click.option("--force", is_flag=True)
-def start(label, seconds, minutes, hours, whitenoise, diary, track, force):
+def start(label, seconds, minutes, hours, whitenoise, diary, count, track,
+          force):
   if diary:
     diary_module.new_command(label)
   timer_module.start_command(
-      label, seconds, minutes, hours, whitenoise, track, force)
+      label, seconds, minutes, hours, whitenoise, count, track, force)
 
 
 @timer.command()
