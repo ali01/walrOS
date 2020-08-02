@@ -4,7 +4,7 @@ from data_util import UpdateCellsMode
 
 import click
 
-WORKSHEET_NAME = "Habits"
+WORKSHEET_NAME = "Flywheel Tracker"
 WORKSHEET_ID = 751441428  # Found in URL.
 HEADER_ROWS = [
   "TITLES",
@@ -13,10 +13,7 @@ HEADER_ROWS = [
   "PERCENTILE_75",
   "PERCENTILE_90",
   "MAX",
-  "WEIGHTS",
-  "GOAL_PERCENTILE",
-  "GOAL_NUMBER",
-  "PROGRESS",
+  "TOTAL_COUNT",
 ]
 
 # Margins
@@ -24,7 +21,7 @@ COLUMN_MARGIN = 5
 
 # We currently assume that each day column is immediately followed
 # by week, month, and quarter columns.
-DAY_COLUMN_INDICES = range(2, 55, 4)
+DAY_COLUMN_INDICES = range(2, 19, 4)
 
 # Aggregate columns that are independently/manually set:
 WEEK_COLUMN_INDICES = []
@@ -65,20 +62,18 @@ def init_command():
 def build_update_statistics_requests(worksheet, tracker_data):
   requests = []
   # Build score formula.
-  score_formula = '=SUM('
-  weights_row_index = tracker_data.row_index("WEIGHTS")
+  score_formula = 'SUM('
   for i in tracker_data.day_column_indices[1:]:
     col = walros_base.col_num_to_letter(i)
-    score_formula += "%s%d*%s$%d," % (col, tracker_data.last_day_row_index,
-                                     col, weights_row_index)
+    score_formula += "%s%d," % (col, tracker_data.last_day_row_index)
   score_formula += ")"
 
   # Normalize.
-  score_formula += " / SUM("
-  for i in tracker_data.day_column_indices[1:]:
-    col = walros_base.col_num_to_letter(i)
-    score_formula += "%s$%d," % (col, weights_row_index)
-  score_formula += ")"
+  score_formula += " / " + str(len(tracker_data.day_column_indices[1:]))
+
+  # Take floor.
+  score_formula = "=FLOOR(" + score_formula + ")"
+
 
   requests.append(worksheet.NewUpdateCellBatchRequest(
       tracker_data.last_day_row_index, 2, score_formula,
