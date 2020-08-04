@@ -39,8 +39,7 @@ def init_command():
   tracker_data.week_column_indices = WEEK_COLUMN_INDICES
   tracker_data.month_column_indices = MONTH_COLUMN_INDICES
   tracker_data.quarter_column_indices = QUARTER_COLUMN_INDICES
-  tracker_data.reduce_formula = (
-      lambda r: "=IF(SUM(%s) = 0, 0, AVERAGE(%s))" % (r, r))
+  tracker_data.reduce_formula = lambda r: "=SUM(%s)" % r
   tracker_data.init_writes_zeros = False
 
   spreadsheet = data_util.Spreadsheet(walros_base.SPREADSHEET_ID)
