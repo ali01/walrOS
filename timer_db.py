@@ -134,7 +134,7 @@ class TimerFileProxy(object):
       self._timer_obj = {
         'label': self._label,
         'endtime': 0,  # This field is 0 when the timer is not running.
-        'remaining': sys.maxint,
+        'remaining': sys.maxsize,
         'interruptions': 0
       }
       with util.OpenAndLock(self.filepath, 'w') as f:
