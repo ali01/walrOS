@@ -46,7 +46,7 @@ COLUMN_MARGIN = 5
 
 # We currently assume that each day column is immediately followed
 # by week, month, and quarter columns.
-DAY_COLUMN_INDICES = [2, 6, 10, 14, 18, 22, 26, 30, 34, 38]
+DAY_COLUMN_INDICES = [2, 6, 10, 14, 18]
 
 FOCUS_UNIT_DURATION = 1800  # Seconds (30 minutes).
 BASE_INTERRUPTION_PENALTY = 0.04 # Time units
