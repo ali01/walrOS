@@ -180,7 +180,7 @@ def build_new_day_requests(tracker_data, worksheet, today, last_date_tracked,
   if tracker_data.init_writes_zeros:
     for i in tracker_data.all_anchor_column_indices:
       requests.append(worksheet.NewUpdateCellBatchRequest(
-          tracker_data.last_day_row_index, i, 0, UpdateCellsMode.number))
+          tracker_data.last_day_row_index, i, 0, UpdateCellsMode.number.value))
   return requests
 
 
@@ -271,7 +271,7 @@ def build_reduce_formula_update(tracker_data, worksheet,
       col_num_to_letter(formula_column), formula_row_range[1])
   return worksheet.NewUpdateCellBatchRequest(
       target_row, target_column, tracker_data.reduce_formula(formula_range),
-      UpdateCellsMode.formula)
+      UpdateCellsMode.formula.value)
 
 
 def col_num_to_letter(column_number):

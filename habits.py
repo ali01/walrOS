@@ -76,5 +76,5 @@ def build_update_statistics_requests(worksheet, tracker_data):
 
   requests.append(worksheet.NewUpdateCellBatchRequest(
       tracker_data.last_day_row_index, 2, score_formula,
-      UpdateCellsMode.formula))
+      UpdateCellsMode.formula.value))
   return requests

@@ -85,7 +85,7 @@ class Worksheet(object):
     formula = 'formulaValue'
 
   def NewUpdateCellBatchRequest(self, row, col, value,
-                                update_cells_mode=UpdateCellsMode.string):
+                                update_cells_mode=UpdateCellsMode.string.value):
     return {
       'updateCells': {
         'fields': 'userEnteredValue',
@@ -197,7 +197,7 @@ if __name__ == '__main__':
 
   requests = []
   requests.append(worksheet.NewUpdateCellBatchRequest(
-      1, 1, 42, update_cells_mode=UpdateCellsMode.number))
+      1, 1, 42, update_cells_mode=UpdateCellsMode.number.value))
   sheet.BatchUpdate(requests)
 
   print(sheet.GetCellValue("Sheet1", 1, 1))

@@ -108,7 +108,7 @@ def build_update_statistics_requests(worksheet, tracker_data):
     sum_formula = "=SUM(%s)" % row_range
     requests.append(worksheet.NewUpdateCellBatchRequest(
         tracker_data.row_index("TOTALS"), i, sum_formula,
-        UpdateCellsMode.formula))
+        UpdateCellsMode.formula.value))
 
   # Build total count formula.
   total_count_formula = '='
@@ -119,7 +119,7 @@ def build_update_statistics_requests(worksheet, tracker_data):
   total_count_formula = total_count_formula[:-1]  # Strip trailing plus sign.
   requests.append(worksheet.NewUpdateCellBatchRequest(
       tracker_data.last_day_row_index, 2, total_count_formula,
-      UpdateCellsMode.formula))
+      UpdateCellsMode.formula.value))
 
   return requests
 
@@ -286,7 +286,7 @@ def timer_increment_label_count(spreadsheet, worksheet, tracker_data, label,
 
   requests = []
   requests.append(worksheet.NewUpdateCellBatchRequest(
-      row, col, cell_value, update_cells_mode=data_util.UpdateCellsMode.number))
+      row, col, cell_value, update_cells_mode=data_util.UpdateCellsMode.number.value))
   spreadsheet.BatchUpdate(requests)
 
   return cell_value
