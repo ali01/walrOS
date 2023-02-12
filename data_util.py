@@ -167,7 +167,7 @@ def GetCredentials():
         flags_namespace = argparse.Namespace()
         setattr(flags_namespace, 'auth_host_name', 'localhost')
         setattr(flags_namespace, 'logging_level', 'ERROR')
-        setattr(flags_namespace, 'noauth_local_webserver', True)
+        setattr(flags_namespace, 'noauth_local_webserver', False)
         setattr(flags_namespace, 'auth_host_port', [8080, 8090])
         credentials = tools.run_flow(flow, store, flags_namespace)
         print('Storing credentials to ' + credential_path)
