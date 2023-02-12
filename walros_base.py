@@ -20,8 +20,15 @@ class TrackerData(object):
     self.week_column_indices = []
     self.month_column_indices = []
     self.quarter_column_indices = []
-    self.reduce_formula = None
     self.init_writes_zeros = True
+
+    # Reduce formula for each category. It's set to SUM by default.
+    self.reduce_formula = lambda r: "=SUM(%s)" % r
+
+    # Reduce formula for the final score on the spreadsheet margin.
+    # It's set to `reduce_formula` above, by default.
+    self.reduce_formula_final = self.reduce_formula
+
 
   @property
   def row_margin(self):
@@ -199,12 +206,21 @@ def build_new_day_merge_requests(tracker_data, worksheet, today,
 
   def close_merge_range_requests(merge_ranges, column_indices):
     range_obj = data_util.MergeRange(merge_ranges[0])
-    for i in column_indices:
-      reduce_column_offset = tracker_data.reduce_column_offset(i)
+
+    # Write category reduce formulas
+    for i, col in enumerate(column_indices):
+      reduce_column_offset = tracker_data.reduce_column_offset(col)
       if reduce_column_offset != 0:  # Reduce only if non-anchor.
+
+        reduce_formula = tracker_data.reduce_formula
+        if i == 0:
+          # Reduce formula for final score on the left spreadsheet margin.
+          reduce_formula = tracker_data.reduce_formula_final
+
         requests.append(build_reduce_formula_update(
-            tracker_data, worksheet, range_obj.row_range[0], i,
-            range_obj.row_range, i+reduce_column_offset))
+            reduce_formula, worksheet, range_obj.row_range[0], col,
+            range_obj.row_range, col + reduce_column_offset))
+
     while merge_ranges:
       # TODO: don't append if row span is equal to 1
       # TODO: return list instead of modifying external variable
@@ -263,14 +279,14 @@ def build_new_day_merge_requests(tracker_data, worksheet, today,
 
 
 # Helper to build and append update formula requests to a list.
-def build_reduce_formula_update(tracker_data, worksheet,
+def build_reduce_formula_update(reduce_formula, worksheet,
                                 target_row, target_column,
                                 formula_row_range, formula_column):
   formula_range = "%s%d:%s%d" % (
       col_num_to_letter(formula_column), formula_row_range[0],
       col_num_to_letter(formula_column), formula_row_range[1])
   return worksheet.NewUpdateCellBatchRequest(
-      target_row, target_column, tracker_data.reduce_formula(formula_range),
+      target_row, target_column, reduce_formula(formula_range),
       UpdateCellsMode.formula.value)
 
 

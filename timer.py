@@ -76,7 +76,7 @@ def init_tracker_data():
   tracker_data.column_margin = COLUMN_MARGIN
   tracker_data.header_rows = HEADER_ROWS
   tracker_data.day_column_indices = DAY_COLUMN_INDICES
-  tracker_data.reduce_formula = lambda r: "=SUM(%s)" % r
+  tracker_data.reduce_formula_final = lambda r: "=AVERAGE(%s)" % r
   return tracker_data
 
 
