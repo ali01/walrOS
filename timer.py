@@ -105,9 +105,11 @@ def build_update_statistics_requests(worksheet, tracker_data):
     column_letter = walros_base.col_num_to_letter(i)
     row_range = "%s%d:%s" % (column_letter, tracker_data.last_day_row_index,
                              column_letter)
-    sum_formula = "=SUM(%s)" % row_range
+
+    # Formula for running average at the top of the sheet.
+    running_average_formula = tracker_data.reduce_formula_final(row_range)
     requests.append(worksheet.NewUpdateCellBatchRequest(
-        tracker_data.row_index("TOTALS"), i, sum_formula,
+        tracker_data.row_index("TOTALS"), i, running_average_formula,
         UpdateCellsMode.formula.value))
 
   # Build final score formula.
