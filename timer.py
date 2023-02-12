@@ -76,7 +76,8 @@ def init_tracker_data():
   tracker_data.column_margin = COLUMN_MARGIN
   tracker_data.header_rows = HEADER_ROWS
   tracker_data.day_column_indices = DAY_COLUMN_INDICES
-  tracker_data.reduce_formula_final = lambda r: "=AVERAGE(%s)" % r
+  tracker_data.reduce_formula_final =\
+    lambda r: "=IF(SUM(%s), AVERAGE(%s), 0)" % (r, r)
   return tracker_data
 
 
@@ -109,15 +110,18 @@ def build_update_statistics_requests(worksheet, tracker_data):
         tracker_data.row_index("TOTALS"), i, sum_formula,
         UpdateCellsMode.formula.value))
 
-  # Build total count formula.
-  total_count_formula = '='
+  # Build final score formula.
+  expr = ""
   for i in tracker_data.day_column_indices[1:]:
-    total_count_formula += "%s%d+" % (walros_base.col_num_to_letter(i),
-                                      tracker_data.last_day_row_index)
+    expr += "%s%d*%s%d," % (walros_base.col_num_to_letter(i),
+                             tracker_data.last_day_row_index,
+                             walros_base.col_num_to_letter(i),
+                             tracker_data.row_index("WEIGHTS"))
+  expr = expr[:-1]  # Strip trailing comma.
+  final_score_formula = "=SUM(%s)" % expr
 
-  total_count_formula = total_count_formula[:-1]  # Strip trailing plus sign.
   requests.append(worksheet.NewUpdateCellBatchRequest(
-      tracker_data.last_day_row_index, 2, total_count_formula,
+      tracker_data.last_day_row_index, 2, final_score_formula,
       UpdateCellsMode.formula.value))
 
   return requests
