@@ -3,8 +3,9 @@ import data_util
 from data_util import UpdateCellsMode
 
 import click
+import util
 
-WORKSHEET_NAME = "Flywheel Tracker"
+WORKSHEET_NAME = "Habits"
 WORKSHEET_ID = 751441428  # Found in URL.
 HEADER_ROWS = [
   "TITLES",
@@ -47,8 +48,8 @@ def init_command():
   init_requests = walros_base.build_init_requests(tracker_data, spreadsheet,
                                                   worksheet)
   if len(init_requests) == 0:
-    click.echo("%s sheet is already initialized for today." %
-               tracker_data.worksheet_name)
+    util.tlog("%s sheet is already initialized for today" %
+              tracker_data.worksheet_name)
     return
 
   # Update sheet wide statistics.
