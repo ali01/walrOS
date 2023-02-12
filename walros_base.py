@@ -274,10 +274,11 @@ def build_reduce_formula_update(tracker_data, worksheet,
       UpdateCellsMode.formula.value)
 
 
-def col_num_to_letter(column_number):
+def col_num_to_letter(column_int):
+  start_index = 1   #  it can start either at 0 or at 1
   letter = ''
-  while column_number > 0:
-    tmp = (column_number - 1) % 26
-    letter = chr(tmp + 65) + letter
-    column_number = (column_number - tmp - 1) / 26
+  while column_int > 25 + start_index:   
+      letter += chr(65 + int((column_int - start_index) / 26) - 1)
+      column_int = column_int - (int((column_int - start_index) / 26)) * 26
+  letter += chr(65 - start_index + (int(column_int)))
   return letter
