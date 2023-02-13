@@ -137,7 +137,8 @@ def GetSpreadsheets():
   http = credentials.authorize(httplib2.Http())
   discoveryUrl = ('https://sheets.googleapis.com/$discovery/rest?version=v4')
   service = discovery.build('sheets', 'v4', http=http,
-                            discoveryServiceUrl=discoveryUrl)
+                            discoveryServiceUrl=discoveryUrl,
+                            num_retries=3)
   return service.spreadsheets()
 
 def GetCredentials():
