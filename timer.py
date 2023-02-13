@@ -60,8 +60,8 @@ DISPLAY_UPDATE_SIGNAL = "display_update"
 
 def setup():
   # Initialize timer.
-  if not os.path.isdir(_config.timer_dir):
-    os.makedirs(_config.timer_dir)
+  if not os.path.isdir(_config.timer_signals_dir):
+    os.makedirs(_config.timer_signals_dir)
 
   def sigint_handler(signum, frame):  # TODO: put inside with statement instead.
     clear_signals()
