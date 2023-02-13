@@ -165,6 +165,8 @@ def start_command(label, seconds, minutes, hours, whitenoise, count, track,
     unset_signal(TIMER_RUNNING_SIGNAL)
 
   try:  # Timer complete, notify and record.
+    timer_notify()
+
     if track:
       with timer_db.TimerFileProxy(label) as timer:
         spreadsheet = data_util.Spreadsheet(walros_base.SPREADSHEET_ID)
@@ -196,9 +198,6 @@ def start_command(label, seconds, minutes, hours, whitenoise, count, track,
   except Exception as ex:
     util.tlog("Error updating spreadsheet count")
     raise ex
-
-  finally:
-    timer_notify()
 
 
 def status_command(data):
