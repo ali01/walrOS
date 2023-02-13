@@ -29,7 +29,6 @@ WORKSHEET_ID = 925912296  # Found in URL.
 HEADER_ROWS = [
   "TITLES",
   "COLUMN_LABELS",
-  "TOTALS",
   "MEDIANS",
   "PERCENTILE_75",
   "PERCENTILE_90",
@@ -100,18 +99,6 @@ def init_command():
 
 # TODO(alive): move sheets logic into separate module.
 def build_update_statistics_requests(worksheet, tracker_data):
-  requests = []
-  for i in tracker_data.day_column_indices:
-    column_letter = walros_base.col_num_to_letter(i)
-    row_range = "%s%d:%s" % (column_letter, tracker_data.last_day_row_index,
-                             column_letter)
-
-    # Formula for running average at the top of the sheet.
-    running_average_formula = tracker_data.reduce_formula_final(row_range)
-    requests.append(worksheet.NewUpdateCellBatchRequest(
-        tracker_data.row_index("TOTALS"), i, running_average_formula,
-        UpdateCellsMode.formula.value))
-
   # Build final score formula.
   expr = ""
   for i in tracker_data.day_column_indices[1:]:
@@ -122,6 +109,7 @@ def build_update_statistics_requests(worksheet, tracker_data):
   expr = expr[:-1]  # Strip trailing comma.
   final_score_formula = "=SUM(%s)" % expr
 
+  requests = []
   requests.append(worksheet.NewUpdateCellBatchRequest(
       tracker_data.last_day_row_index, 2, final_score_formula,
       UpdateCellsMode.formula.value))
