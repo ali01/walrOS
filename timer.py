@@ -100,14 +100,17 @@ def init_command():
 # TODO(alive): move sheets logic into separate module.
 def build_update_statistics_requests(worksheet, tracker_data):
   # Build final score formula.
-  expr = ""
+  range_expr = ""
   for i in tracker_data.day_column_indices[1:]:
-    expr += "%s%d*%s%d," % (walros_base.col_num_to_letter(i),
-                             tracker_data.last_day_row_index,
-                             walros_base.col_num_to_letter(i),
-                             tracker_data.row_index("WEIGHTS"))
-  expr = expr[:-1]  # Strip trailing comma.
-  final_score_formula = "=SUM(%s)" % expr
+    range_expr += "%s$%d*MIN(TimeMaxScore,%s%d/%s$%d), " % (
+        walros_base.col_num_to_letter(i),
+        tracker_data.row_index("WEIGHTS"),
+        walros_base.col_num_to_letter(i),
+        tracker_data.last_day_row_index,
+        walros_base.col_num_to_letter(i),
+        tracker_data.row_index("GOAL_NUMBER"))
+  range_expr = range_expr[:-2]  # Strip trailing space &comma.
+  final_score_formula = "=SUM(%s)" % range_expr
 
   requests = []
   requests.append(worksheet.NewUpdateCellBatchRequest(
