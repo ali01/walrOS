@@ -3,6 +3,7 @@ import fcntl
 import itertools
 import os
 import os.path
+import platform
 import signal
 import subprocess
 import sys
@@ -243,6 +244,10 @@ def inc_command(delta):
 
 
 def timer_notify():
+  if platform.system().lower() != 'darwin':
+    return
+
+
   util.tlog("Notified")
   time_str = datetime.datetime.strftime(datetime.datetime.now(), "%H:%M")
   subprocess.call(["osascript -e \'display notification " +
@@ -250,7 +255,7 @@ def timer_notify():
                   shell=True)
   for ix in range(0, 3):
     subprocess.call(["afplay", "/System/Library/Sounds/Blow.aiff"])
-    time.sleep(2)
+    time.sleep(1)
 
 
 def timer_signal_path(signal_name):
