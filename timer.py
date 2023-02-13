@@ -7,6 +7,7 @@ import platform
 import signal
 import subprocess
 import sys
+import threading
 import time
 
 import click
@@ -243,18 +244,23 @@ def inc_command(delta):
 
 
 def timer_notify():
+  # Only notify in Mac OS.
   if platform.system().lower() != 'darwin':
-    return
+      return
 
+  def _notify():
+    util.tlog("Notified")
+    time_str = datetime.datetime.strftime(datetime.datetime.now(), "%H:%M")
+    subprocess.call(["osascript -e \'display notification " +
+                     "\"%s: notify\" with title \"walrOS timer\"\'" % time_str],
+                    shell=True)
+    for ix in range(0, 3):
+      subprocess.call(["afplay", "/System/Library/Sounds/Blow.aiff"])
+      time.sleep(1)
 
-  util.tlog("Notified")
-  time_str = datetime.datetime.strftime(datetime.datetime.now(), "%H:%M")
-  subprocess.call(["osascript -e \'display notification " +
-                   "\"%s: notify\" with title \"walrOS timer\"\'" % time_str],
-                  shell=True)
-  for ix in range(0, 3):
-    subprocess.call(["afplay", "/System/Library/Sounds/Blow.aiff"])
-    time.sleep(1)
+  # Run in a separate thread to allow API calls to make simultaneous progress.
+  t = threading.Thread(target=_notify)
+  t.start()
 
 
 def timer_signal_path(signal_name):
